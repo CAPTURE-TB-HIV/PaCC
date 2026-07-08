@@ -38,17 +38,21 @@ countries <- covariates$study.country
 plot_inputs <- function(selectedCntry){
     covariates_filt <- covariates %>% filter(study.country == selectedCntry) %>% 
                        mutate(scale.median.income = median.income /100,
-                              scale.median.income.trunc = median.income.trunc /100)
+                              scale.median.income.trunc = median.income.trunc /100) %>% 
+                       rename("Median individual\nannual income\n(in 100s of 2024 USD)" = scale.median.income.trunc, 
+                              "Universal healthcare\ncoverage index" = uhc.index.trunc, 
+                              "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che.trunc)
     
     
     ggplot(data = covariates_filt %>% 
-                  pivot_longer(cols= c(scale.median.income.trunc, 
-                               uhc.index.trunc,
-                               oop.perc.che.trunc),names_to = "Covariate", values_to = "Value")) + 
+                  pivot_longer(cols= c(
+                       `Median individual\nannual income\n(in 100s of 2024 USD)`, 
+                       `Universal healthcare\ncoverage index`,
+                       `Out-of-pocket percentage\nof current health\nexpenditures`),names_to = "Covariate", values_to = "Value")) + 
         geom_col(aes(x=Covariate, y=Value), fill = "#A8DCAB", color="black") + theme_minimal(base_size = 14) + 
         ggtitle(paste("Values of covariates used to predict patient costs in", selectedCntry)) + 
         coord_flip() +
-        expand_limits(y=c(0,120))
+        expand_limits(y=c(0,120)) + xlab("")
     
 }
 
