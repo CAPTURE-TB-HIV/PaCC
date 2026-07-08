@@ -248,15 +248,24 @@ ui <- page_navbar( id = "inTabset",
 
 nav_panel(title = "Documentation" , 
           setBackgroundColor("#BE91BE"),
-          
           titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Documentation and methods behind PaCC")),
+          
+          fluidRow(
+              column(8,
+                     includeMarkdown("inst/md/docAndMethods.md"))
+          )
 ), 
 
 nav_panel(title = "Guidance" , 
           setBackgroundColor("#BE91BE"),
           
           titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Guidance and recommendations on TB patient costs")),
-) 
+
+          fluidRow(
+              column(8,
+                     includeMarkdown("inst/md/guidance.md"))
+          )
+          )
 )
 
 ###############################################################################
