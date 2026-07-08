@@ -52,7 +52,8 @@ plot_inputs <- function(selectedCntry){
         geom_col(aes(x=Covariate, y=Value), fill = "#A8DCAB", color="black") + theme_minimal(base_size = 14) + 
         ggtitle(paste("Values of covariates used to predict patient costs in", selectedCntry)) + 
         coord_flip() +
-        expand_limits(y=c(0,120)) + xlab("")
+        expand_limits(y=c(0,120)) + xlab("") + 
+        geom_text(aes(x=Covariate, y=Value, label=round(Value)), hjust = -.75)
     
 }
 
@@ -173,7 +174,9 @@ plot_costs <- function(selectedCntry){
                 ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
                 coord_flip() + theme_minimal(base_size = 14) + 
                 expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
-              xlab("") + ylab("Costs (2024 USD)")
+              xlab("") + ylab("Costs (2024 USD)") +
+                geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
+              
     
 }
 
