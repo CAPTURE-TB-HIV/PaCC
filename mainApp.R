@@ -8,18 +8,33 @@ library(stringr)
 library(ggplot2)
 library(bslib)
 
-# the post url
+#### Repository URL 
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 
+
+##############################################################################|
+##### Read in the required data ##
+##### If need to reduce bloat, this could be optimized to only read in 
+##### data for selected country -- however could make switching slower for 
+##### user. 
+##############################################################################|
+##### External covariate data 
 covariates <- readRDS("utilities/data/covariates.rds")
+##### Model parameter estimates 
 params <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),2] %>% as.numeric()
 names(params) <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),1]
 
+##### Model estimates of country random effects
 cntryREs <- readRDS("utilities/data/cntryRndEff.rds")
+
+##### Available countries
 countries <- covariates$study.country
 
 
-### Creates a plot of input data 
+##############################################################################|
+##### Function to create a bar plot of covariate inputs for selected country ##
+##############################################################################|
+
 plot_inputs <- function(selectedCntry){
     covariates_filt <- covariates %>% filter(study.country == selectedCntry) %>% 
                        mutate(scale.median.income = median.income /100,
@@ -37,6 +52,10 @@ plot_inputs <- function(selectedCntry){
     
 }
 
+
+##############################################################################|
+##### Function to calculate costs for selected country and return dataframe  ##
+##############################################################################|
 
 calculateCosts <- function(selectedCntry, 
                            selectedYr = 2024) {
@@ -137,6 +156,10 @@ calculateCosts <- function(selectedCntry,
     return(allCosts)
 }
 
+
+##############################################################################|
+##### Function to create a bar plot of calculated costs for selected country ##
+##############################################################################|
 plot_costs <- function(selectedCntry){
     
               costs_df <- calculateCosts(selectedCntry = selectedCntry)
@@ -181,7 +204,7 @@ ui <- page_navbar( id = "inTabset",
               
               titlePanel(title = span(img(src = "logoZoom.png", height = 100), "TB Patient Cost Calculator")),
               
-              
+              ##### Sidebar which includes the country dropdown selection #####
               sidebarLayout(
                   sidebarPanel(
                       
@@ -195,23 +218,20 @@ ui <- page_navbar( id = "inTabset",
                         Predictive model code available "), tags$a(href=post, "in this repository.")))
                       
                   ),
+                  ##### Main panel of results on right of screen
                   mainPanel(
+                      ##### Create an inset of tabs for the user to click through #####
                       navset_card_underline(
                           title = "",
-                          # Panel with plot ----
+                          ##### Plot of costs #####
                           nav_panel("Cost plots", 
                           plotOutput(outputId = "costbar")),
-                      
-                      nav_panel("Cost table",
-                                tableOutput(outputId = "costTable")),
-                      
-                      nav_panel("Covariate plots", 
-                                plotOutput(outputId = "covariates")), 
-                      
-                     
-                      
-                      # plotOutput(outputId = "bars"))
-                      # tableOutput(outputId = "table")
+                          ##### Table of costs #####
+                          nav_panel("Cost table",
+                                    tableOutput(outputId = "costTable")),
+                          ##### Plot of covariates #####
+                          nav_panel("Covariate plots", 
+                                    plotOutput(outputId = "covariates"))
                   )
               
               )
@@ -225,29 +245,33 @@ ui <- page_navbar( id = "inTabset",
 
 server <- function(input, output, session) {
     
+    #### Observe the country selected 
     observeEvent(input$jumpToPaCC, {
         updateTabsetPanel(session, "inTabset",
                           selected = "PaCC")
     })
     
     
-        # the cost bar plot
+        #### Plot country specific costs as bar plot
         output$costbar <- renderPlot({
             plot_costs(input$country)
         })
         
-        
+        #### Present country specific costs as table
         output$costTable <- renderTable({
             calculateCosts(input$country)#, striped=TRUE
         })
         
-        # the bar plot
+        #### Plot country specific covariates as bar plot
         output$covariates <- renderPlot({
             plot_inputs(input$country)
         })
     
 }
 
-# run it all
+###############################################################################
+##### Run everything 
+###############################################################################
+
 shinyApp(ui = ui, server = server)
 
