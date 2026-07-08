@@ -244,7 +244,19 @@ ui <- page_navbar( id = "inTabset",
               
               )
 )
-)
+), ##### Close PaCC nav panel 
+
+nav_panel(title = "Documentation" , 
+          setBackgroundColor("#BE91BE"),
+          
+          titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Documentation and methods behind PaCC")),
+), 
+
+nav_panel(title = "Guidance" , 
+          setBackgroundColor("#BE91BE"),
+          
+          titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Guidance and recommendations on TB patient costs")),
+) 
 )
 
 ###############################################################################
