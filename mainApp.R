@@ -137,9 +137,9 @@ calculateCosts <- function(selectedCntry,
     return(allCosts)
 }
 
-plot_costs <- function(study.country){
+plot_costs <- function(selectedCntry){
     
-              costs_df <- calculateCosts(selectedCntry = study.country)
+              costs_df <- calculateCosts(selectedCntry = selectedCntry)
     
               ggplot(costs_df) + 
                 geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
