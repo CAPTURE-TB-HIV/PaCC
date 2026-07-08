@@ -12,7 +12,7 @@ library(bslib)
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 
 # user interface elements and layout
-ui <- page_navbar(
+ui <- page_navbar( id = "inTabset",
 
     nav_panel(title = "About", 
               
@@ -27,7 +27,9 @@ ui <- page_navbar(
               
               p("The TB Patient Cost Calculator (TB PaCC)  estimates country-level TB patient costs for 129 low- and middle income countries. We chose the name TB PaCC to represent the significant planning and resources required among persons undergoing TB treatment. Furthermore, the economic burden of TB treatment can place financial strain on households, like carrying a heavy pack throughout a journey."),
               p("The underlying model is informed from data collected from 104 studies of TB patient costs, representing more than 55,000 persons treated for TB. The model uses routinely reported country- and year- matched data to estimate the cost of TB, stratified by three cost types (direct medical, direct non-medical, and indirect) and across the phases of the TB care cascade (pre-treatment, intensive treatment, and continuation treatment). All estimates represent TB patient costs in 2024 in 2024 USD."),
-              p("Please note: TB patient cost data varies substantially across settings and study design. As such, our estimates should be used as a guide point for analyses.")),
+              p("Please note: TB patient cost data varies substantially across settings and study design. As such, our estimates should be used as a guide point for analyses."), 
+              
+              actionButton('jumpToPaCC', 'Get started!')),
     
     nav_panel(title = "PaCC" , 
               setBackgroundColor("#BE91BE"),
@@ -57,7 +59,12 @@ ui <- page_navbar(
 )
 
 # server-side computations
-server <- function(input, output) {
+server <- function(input, output, session) {
+    
+    observeEvent(input$jumpToPaCC, {
+        updateTabsetPanel(session, "inTabset",
+                          selected = "PaCC")
+    })
     
     # output$table <- renderTable({     # most of this is for ggplot2; note the input$x syntax
     #     flips <- tibble(flips = rbinom(input$n, 1, input$prob)) %>% 
