@@ -197,7 +197,8 @@ ui <- page_navbar( id = "inTabset",
               p("The underlying model is informed from data collected from 104 studies of TB patient costs, representing more than 55,000 persons treated for TB. The model uses routinely reported country- and year- matched data to estimates the cost of TB, stratified by three cost Types (direct medical, direct non-medical, and indirect) and across the phases of the TB care cascade (pre-treatment, intensive treatment, and continuation treatment). All estimates represent TB patient costs in 2024 in 2024 USD."),
               p("Please note: TB patient cost data varies substantially across settings and study design. As such, our estimates should be used as a guide point for analyses."), 
               
-              actionButton('jumpToPaCC', 'Get started!')),
+              actionButton('jumpToPaCC', 'Get started!', icon("paper-plane"),
+                           style="color: #000000; background-color: #FFFFFF")),
     
     nav_panel(title = "PaCC" , 
               setBackgroundColor("#BE91BE"),
@@ -259,7 +260,7 @@ server <- function(input, output, session) {
         
         #### Present country specific costs as table
         output$costTable <- renderTable({
-            calculateCosts(input$country)#, striped=TRUE
+            calculateCosts(input$country)
         })
         
         #### Plot country specific covariates as bar plot
