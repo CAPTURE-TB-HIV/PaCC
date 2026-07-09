@@ -189,7 +189,8 @@ plot_costs <- function(selectedCntry){
 ###############################################################################
 
 ui <- page_navbar( id = "inTabset",
-
+        tags$head(tags$style(HTML("a {color: white}"))),
+                   
     nav_panel(title = "About", 
               
               headerPanel(
