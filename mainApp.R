@@ -167,17 +167,16 @@ calculateCosts <- function(selectedCntry,
 ##############################################################################|
 plot_costs <- function(selectedCntry){
     
-              costs_df <- calculateCosts(selectedCntry = selectedCntry)
-    
-              ggplot(costs_df) + 
-                geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
-                ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
-                coord_flip() + theme_minimal(base_size = 14) + 
-                expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
-              xlab("") + ylab("Costs (2024 USD)") +
-                geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
-              
-    
+  costs_df <- calculateCosts(selectedCntry = selectedCntry)
+
+  ggplot(costs_df) + 
+    geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
+    ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
+    coord_flip() + theme_minimal(base_size = 14) + 
+    expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
+  xlab("") + ylab("Costs (2024 USD)") +
+    geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
+             
 }
 
 ###############################################################################
@@ -189,7 +188,7 @@ plot_costs <- function(selectedCntry){
 ###############################################################################
 
 ui <- page_navbar( id = "inTabset",
-        tags$head(tags$style(HTML("a {color: white}"))),
+        tags$head(tags$style(HTML("a {color: black}"))),
                    
     nav_panel(title = "About", 
               
