@@ -451,6 +451,8 @@ server <- function(input, output, session) {
                                                 reactiveVar$medIncReact,
                                                 reactiveVar$oopReact,
                                                 reactiveVar$uhcReact) 
+        
+        shinyjs::disable("reRun")
     })
 
         #### Plot country specific costs as bar plot
