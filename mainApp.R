@@ -183,15 +183,7 @@ calculateCosts <- function(selectedCntry,
 ##############################################################################|
 plot_costs <- function(selectedCntry,
                        costs_df
-                       # medIncInput,
-                       # oopInput,
-                       # uhcInput
                        ){
-    
-  # costs_df <- calculateCosts(selectedCntry = selectedCntry, 
-  #                            medIncInput = medIncInput, 
-  #                            oopInput = oopInput, 
-  #                            uhcInput = uhcInput)
   
   ggplot(costs_df) + 
     geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
@@ -324,6 +316,13 @@ ui <- page_navbar(
                           
                           nav_panel("Relevant studies", 
                                     tableOutput(outputId = "studyTable")), 
+                  ),
+                  
+                  downloadButton(
+                      "downloadTable",
+                      label = "Download calculated costs",
+                      icon = shiny::icon("download"),
+                      enabled = TRUE
                   )
               
               ),
@@ -474,6 +473,18 @@ server <- function(input, output, session) {
         output$studyTable <- renderTable({
             lookup_studies(input$country)
         })
+        
+        
+        output$downloadTable <- downloadHandler(
+            filename = function() {
+                # Use the selected dataset as the suggested file name
+                paste0("PaCC_estimate_",selectedCntry, ".csv")
+            },
+            content = function(file) {
+                # Write the dataset to the `file` that will be downloaded
+                write.csv(reactiveVar$calcCosts, file)
+            }
+        )
         
     
 }
