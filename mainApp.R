@@ -182,18 +182,16 @@ calculateCosts <- function(selectedCntry,
 ##### Function to create a bar plot of calculated costs for selected country ##
 ##############################################################################|
 plot_costs <- function(selectedCntry,
-                       medIncInput,
-                       oopInput,
-                       uhcInput){
+                       costs_df
+                       # medIncInput,
+                       # oopInput,
+                       # uhcInput
+                       ){
     
-  costs_df <- calculateCosts(selectedCntry = selectedCntry, 
-                             medIncInput = medIncInput, 
-                             oopInput = oopInput, 
-                             uhcInput = uhcInput)
-  # costs_df[10,] <- c("UHC Input", uhcInput)
-  # costs_df[11,] <- c("OOP Input", oopInput)
-  # costs_df[12,] <- c("MI Input", medIncInput)
-  # costs_df[,2] <- as.numeric(costs_df[,2])
+  # costs_df <- calculateCosts(selectedCntry = selectedCntry, 
+  #                            medIncInput = medIncInput, 
+  #                            oopInput = oopInput, 
+  #                            uhcInput = uhcInput)
   
   ggplot(costs_df) + 
     geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
@@ -389,7 +387,8 @@ server <- function(input, output, session) {
     })
     
     
-    reactiveVar <- reactiveValues(uhcReact = NULL)
+    reactiveVar <- reactiveValues(uhcReact = NULL, oopReact = NULL, medIncReact = NULL, 
+                                  calcCosts = NULL)
     
     #### Observe the country selected 
     observeEvent(input$country, {
@@ -417,6 +416,11 @@ server <- function(input, output, session) {
                            value = as.numeric(covariateDF[,"uhc.index"]))
         
         shinyjs::disable("uhcIndex")
+        
+        reactiveVar$calcCosts <- calculateCosts(input$country,
+                                                reactiveVar$medIncReact,
+                                                reactiveVar$oopReact,
+                                                reactiveVar$uhcReact) 
     })
 
     
@@ -443,21 +447,22 @@ server <- function(input, output, session) {
         reactiveVar$medIncReact <- input$medInc
         reactiveVar$oopReact <- input$oopPerc
         reactiveVar$uhcReact <- input$uhcIndex
+        
+        reactiveVar$calcCosts <- calculateCosts(input$country,
+                                                reactiveVar$medIncReact,
+                                                reactiveVar$oopReact,
+                                                reactiveVar$uhcReact) 
     })
 
         #### Plot country specific costs as bar plot
         output$costbar <- renderPlot({
             plot_costs(input$country, 
-                       # uhcIndexCalc
-                       reactiveVar$medIncReact,
-                       reactiveVar$oopReact,
-                       reactiveVar$uhcReact 
+                       reactiveVar$calcCosts
                        )
         })
         
         #### Present country specific costs as table
-        output$costTable <- renderTable({
-            calculateCosts(input$country)
+        output$costTable <- renderTable({reactiveVar$calcCosts
         })
         
         #### Plot country specific covariates as bar plot
