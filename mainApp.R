@@ -174,10 +174,17 @@ calculateCosts <- function(selectedCntry,
 ##############################################################################|
 ##### Function to create a bar plot of calculated costs for selected country ##
 ##############################################################################|
-plot_costs <- function(selectedCntry){
+plot_costs <- function(selectedCntry,
+                       medIncInput,
+                       oopInput,
+                       uhcInput){
     
   costs_df <- calculateCosts(selectedCntry = selectedCntry)
-
+  costs_df[10,] <- c("UHC Input", uhcInput)
+  costs_df[11,] <- c("OOP Input", oopInput)
+  costs_df[12,] <- c("MI Input", medIncInput)
+  costs_df[,2] <- as.numeric(costs_df[,2])
+  
   ggplot(costs_df) + 
     geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
     ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
@@ -367,14 +374,22 @@ server <- function(input, output, session) {
     observeEvent(input$jumpToPaCC, {
         updateTabsetPanel(session, "inTabset",
                           selected = "PaCC")
+        
+        shinyjs::disable("reRun")
     })
     
+    
+    reactiveVar <- reactiveValues(uhcReact = NULL)
     
     #### Observe the country selected 
     observeEvent(input$country, {
         
         covariateDF <- lookup_inputs(input$country)
         
+        reactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.trunc"]))
+        reactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che"])
+        reactiveVar$uhcReact <- as.numeric(covariateDF[,"uhc.index"])
+                                           
         updateNumericInput(session,
                            inputId = "medInc",
                            value = round(as.numeric(covariateDF[,"median.income.trunc"])))
@@ -397,29 +412,37 @@ server <- function(input, output, session) {
     
     ##### If the user clicks the customize covariates button, unlock the covariate boxes 
     observeEvent(input$custCovs, { 
-        
+    
         shinyjs::enable("medInc")
         shinyjs::enable("oopPerc")
         shinyjs::enable("uhcIndex")
+        
+        shinyjs::enable("reRun")
     
     })
     
     ##### Once the covariates are updated and the user clicks calculate costs, 
     ##### relock the input boxes. 
     
-    observeEvent(input$reRun, { 
-        
+    observeEvent(input$reRun, {
+
         shinyjs::disable("medInc")
         shinyjs::disable("oopPerc")
         shinyjs::disable("uhcIndex")
         
+        reactiveVar$medIncReact <- input$medInc
+        reactiveVar$oopReact <- input$oopPerc
+        reactiveVar$uhcReact <- input$uhcIndex
     })
-    
-    
-    
+
         #### Plot country specific costs as bar plot
         output$costbar <- renderPlot({
-            plot_costs(input$country)
+            plot_costs(input$country, 
+                       # uhcIndexCalc
+                       reactiveVar$medIncReact,
+                       reactiveVar$oopReact,
+                       reactiveVar$uhcReact 
+                       )
         })
         
         #### Present country specific costs as table
