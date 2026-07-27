@@ -30,19 +30,28 @@ cntryREs <- readRDS("utilities/data/cntryRndEff.rds")
 ##### Available countries
 countries <- covariates$study.country
 
+##### Relevant studies 
+studies <- readRDS("utilities/data/tbPatientCostStudies.rds")
+
 
 ##############################################################################|
 ##### Function to create a bar plot of covariate inputs for selected country ##
 ##############################################################################|
 
-plot_inputs <- function(selectedCntry){
+lookup_inputs <- function(selectedCntry){
     covariates_filt <- covariates %>% filter(study.country == selectedCntry) %>% 
-                       mutate(scale.median.income = median.income /100,
-                              scale.median.income.trunc = median.income.trunc /100) %>% 
-                       rename("Median individual\nannual income\n(in 100s of 2024 USD)" = scale.median.income.trunc, 
-                              "Universal healthcare\ncoverage index" = uhc.index.trunc, 
-                              "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che.trunc)
+        mutate(scale.median.income = median.income /100,
+               scale.median.income.trunc = median.income.trunc /100) %>% 
+        rename("Median individual\nannual income\n(in 100s of 2024 USD)" = scale.median.income.trunc, 
+               "Universal healthcare\ncoverage index" = uhc.index.trunc, 
+               "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che.trunc)
     
+    return(covariates_filt)
+}
+
+plot_inputs <- function(selectedCntry){
+
+    covariates_filt <- lookup_inputs(selectedCntry)
     
     ggplot(data = covariates_filt %>% 
                   pivot_longer(cols= c(
@@ -179,6 +188,24 @@ plot_costs <- function(selectedCntry){
              
 }
 
+
+##############################################################################|
+##### Function to lookup relevant studies                                    ##
+##############################################################################|
+
+lookup_studies <- function(selectedCntry){
+    studies_filt <- studies %>% filter(Country == selectedCntry) %>%
+                    arrange(Year) %>% 
+                    select(! c(Year, Country)) %>% 
+                    rename(`Studies identified in systematic review` = Formatted)
+    
+    if (nrow(studies_filt) < 1) {
+        studies_filt[1,"Studies identified in systematic review"] <- "No studies identified."
+    }
+    
+    return(studies_filt)
+}
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -187,7 +214,10 @@ plot_costs <- function(selectedCntry){
 ##### user interface elements and layout
 ###############################################################################
 
-ui <- page_navbar( id = "inTabset",
+ui <- page_navbar( 
+        shinyjs:: useShinyjs(),
+    
+        id = "inTabset",
         tags$head(tags$style(HTML("a {color: black}"))),
                    
     nav_panel(title = "About", 
@@ -211,7 +241,7 @@ ui <- page_navbar( id = "inTabset",
               setBackgroundColor("#BE91BE"),
               
               titlePanel(title = span(img(src = "logoZoom.png", height = 100), "TB Patient Cost Calculator")),
-              
+
               ##### Sidebar which includes the country dropdown selection #####
               sidebarLayout(
                   sidebarPanel(
@@ -222,12 +252,48 @@ ui <- page_navbar( id = "inTabset",
                           choices = countries
                       ),
                       
-                      tags$div(tags$p(HTML("<br><br>
-                        Predictive model code available "), tags$a(href=post, "in this repository.")))
+                      tags$div(tags$p(HTML("<br><b>
+                        Default covariate values for selected country: </b>"))),
+                      
+                      numericInput( 
+                          "medInc", 
+                          "Median annual household income (in 2025 INTD):", 
+                          value = NULL, 
+                          min = 4540, 
+                          max = 81454 
+                      ),
+                      
+                      numericInput( 
+                          "oopPerc", 
+                          "Out-of-pocket percentage of current health expenditures:", 
+                          value = NULL, 
+                          min = 4, 
+                          max = 74 
+                      ),
+                      
+                      numericInput( 
+                          "uhcIndex", 
+                          "Universal healthcare coverage index:", 
+                          value = NULL, 
+                          min = 19, 
+                          max = 84 
+                      ), 
+                      
+                      tags$div(tags$p(HTML("<br><b>
+                        To calculate costs with custom covariate values, click the 'Customize covariates' button below. 
+                        Update the values, then click the 'Calculate costs' button. </b>"))),
+                      
+                      actionButton('custCovs', 'Customize covariates',
+                                   style="color: #000000; background-color: #FFFFFF"),
+                  
+                      actionButton('reRun',    '   Calculate costs  ',
+                                   style="color: #000000; background-color: #FFFFFF"),
+                      
                       
                   ),
                   ##### Main panel of results on right of screen
                   mainPanel(
+    
                       ##### Create an inset of tabs for the user to click through #####
                       navset_card_underline(
                           title = "",
@@ -239,11 +305,21 @@ ui <- page_navbar( id = "inTabset",
                                     tableOutput(outputId = "costTable")),
                           ##### Plot of covariates #####
                           nav_panel("Covariate plots", 
-                                    plotOutput(outputId = "covariates"))
+                                    plotOutput(outputId = "covariates")), 
+                          
+                          nav_panel("Relevant studies", 
+                                    tableOutput(outputId = "studyTable")), 
                   )
               
-              )
-)
+              ),
+              
+              # HTML('<footer>
+              #         CAPTURE funded by Gates
+              #       </footer>')
+),
+
+tags$div(tags$p(HTML("<br>
+                        Methodological overview provided in the Documentation tab.\nPredictive model code available "), tags$a(href=post, "in this repository.")))
 ), ##### Close PaCC nav panel 
 
 nav_panel(title = "Documentation" , 
@@ -265,7 +341,21 @@ nav_panel(title = "Guidance" ,
               column(8,
                      includeMarkdown("inst/md/guidance.md"))
           )
-          )
+          )#,
+# )
+
+# tags$footer(strong("This tool was developed by CAPTURE study team."), # strong() = bold
+#             align = "right",
+#             style = "
+#                  position:absolute;
+#                  bottom:0px;
+#                  width:100%;
+#                  height:40px;
+#                  color: black;
+#                  padding: 10px;
+#                  background-color: white;
+#                  z-index: 0;
+#                 "),
 )
 
 ###############################################################################
@@ -274,11 +364,57 @@ nav_panel(title = "Guidance" ,
 
 server <- function(input, output, session) {
     
-    #### Observe the country selected 
     observeEvent(input$jumpToPaCC, {
         updateTabsetPanel(session, "inTabset",
                           selected = "PaCC")
     })
+    
+    
+    #### Observe the country selected 
+    observeEvent(input$country, {
+        
+        covariateDF <- lookup_inputs(input$country)
+        
+        updateNumericInput(session,
+                           inputId = "medInc",
+                           value = round(as.numeric(covariateDF[,"median.income.trunc"])))
+        
+        shinyjs::disable("medInc")
+        
+        updateNumericInput(session,
+                           inputId = "oopPerc",
+                           value = as.numeric(covariateDF[,"oop.perc.che"]))
+        
+        shinyjs::disable("oopPerc")
+        
+        updateNumericInput(session,
+                           inputId = "uhcIndex",
+                           value = as.numeric(covariateDF[,"uhc.index"]))
+        
+        shinyjs::disable("uhcIndex")
+    })
+
+    
+    ##### If the user clicks the customize covariates button, unlock the covariate boxes 
+    observeEvent(input$custCovs, { 
+        
+        shinyjs::enable("medInc")
+        shinyjs::enable("oopPerc")
+        shinyjs::enable("uhcIndex")
+    
+    })
+    
+    ##### Once the covariates are updated and the user clicks calculate costs, 
+    ##### relock the input boxes. 
+    
+    observeEvent(input$reRun, { 
+        
+        shinyjs::disable("medInc")
+        shinyjs::disable("oopPerc")
+        shinyjs::disable("uhcIndex")
+        
+    })
+    
     
     
         #### Plot country specific costs as bar plot
@@ -295,6 +431,13 @@ server <- function(input, output, session) {
         output$covariates <- renderPlot({
             plot_inputs(input$country)
         })
+        
+        #### Present country specific studies as a table
+        output$studyTable <- renderTable({
+            lookup_studies(input$country)
+        })
+        
+        
     
 }
 
