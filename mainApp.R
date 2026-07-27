@@ -319,11 +319,18 @@ ui <- page_navbar(
                   ),
                   
                   downloadButton(
-                      "downloadTable",
-                      label = "Download calculated costs",
+                      "downloadFigure",
+                      label = "Download cost figure",
                       icon = shiny::icon("download"),
                       enabled = TRUE
-                  )
+                  ), 
+                  
+                  downloadButton(
+                      "downloadTable",
+                      label = "Download cost table",
+                      icon = shiny::icon("download"),
+                      enabled = TRUE
+                  ), 
               
               ),
               
@@ -387,7 +394,7 @@ server <- function(input, output, session) {
     
     
     reactiveVar <- reactiveValues(uhcReact = NULL, oopReact = NULL, medIncReact = NULL, 
-                                  calcCosts = NULL)
+                                  calcCosts = NULL, costPlot = NULL)
     
     #### Observe the country selected 
     observeEvent(input$country, {
@@ -456,10 +463,16 @@ server <- function(input, output, session) {
     })
 
         #### Plot country specific costs as bar plot
+    
+
         output$costbar <- renderPlot({
-            plot_costs(input$country, 
-                       reactiveVar$calcCosts
-                       )
+            reactiveVar$costPlot <- plot_costs(input$country, 
+                                   reactiveVar$calcCosts
+            )
+            reactiveVar$costPlot
+            # plot_costs(input$country, 
+            #            reactiveVar$calcCosts
+            #            )
         })
         
         #### Present country specific costs as table
@@ -477,6 +490,17 @@ server <- function(input, output, session) {
         })
         
         
+        output$downloadFigure <- downloadHandler(
+            filename = function() {
+                # Use the selected dataset as the suggested file name
+                paste0("PaCC_estimate_",selectedCntry, ".pdf")
+            },
+            content = function(file) {
+                # Write the dataset to the `file` that will be downloaded
+                ggsave(reactiveVar$costPlot, filename = file, width=11, height=8.5, unit = "in")
+            }
+        )
+        
         output$downloadTable <- downloadHandler(
             filename = function() {
                 # Use the selected dataset as the suggested file name
@@ -487,6 +511,9 @@ server <- function(input, output, session) {
                 write.csv(reactiveVar$calcCosts, file)
             }
         )
+        
+        
+
         
     
 }
