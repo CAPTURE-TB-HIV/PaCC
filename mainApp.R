@@ -77,8 +77,8 @@ calculateCosts <- function(selectedCntry,
     covs <- covariates %>% 
                        filter(study.country == selectedCntry) %>% 
                        mutate(scaled.med.inc = (log.median.income.trunc - 7.667872) / 0.8402527, 
-                              scaled.oop.che = (log.median.income.trunc - 39.6697) / 16.0616, 
-                              scaled.uhc =     (log.median.income.trunc - 61.46697) / 15.68885)
+                              scaled.oop.che = (oop.perc.che.trunc - 39.6697) / 16.0616, 
+                              scaled.uhc =     (uhc.index.trunc - 61.46697) / 15.68885)
     
     cntryRE <- cntryREs %>% filter(Country == selectedCntry) %>% select(Value) %>% 
                unlist() %>% as.numeric()
