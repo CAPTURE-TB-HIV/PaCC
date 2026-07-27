@@ -72,6 +72,9 @@ plot_inputs <- function(selectedCntry){
 ##############################################################################|
 
 calculateCosts <- function(selectedCntry, 
+                           medIncInput, 
+                           oopInput,
+                           uhcInput,
                            selectedYr = 2024) {
     
     covs <- covariates %>% 
@@ -79,6 +82,10 @@ calculateCosts <- function(selectedCntry,
                        mutate(scaled.med.inc = (log.median.income.trunc - 7.667872) / 0.8402527, 
                               scaled.oop.che = (oop.perc.che.trunc - 39.6697) / 16.0616, 
                               scaled.uhc =     (uhc.index.trunc - 61.46697) / 15.68885)
+    
+    covs[, "scaled.med.inc"] <- (log(medIncInput) - 7.667872) / 0.8402527
+    covs[, "scaled.oop.che"] <- (oopInput - 39.6697) / 16.0616
+    covs[, "scaled.uhc"]     <- (uhcInput - 61.46697) / 15.68885
     
     cntryRE <- cntryREs %>% filter(Country == selectedCntry) %>% select(Value) %>% 
                unlist() %>% as.numeric()
@@ -179,11 +186,14 @@ plot_costs <- function(selectedCntry,
                        oopInput,
                        uhcInput){
     
-  costs_df <- calculateCosts(selectedCntry = selectedCntry)
-  costs_df[10,] <- c("UHC Input", uhcInput)
-  costs_df[11,] <- c("OOP Input", oopInput)
-  costs_df[12,] <- c("MI Input", medIncInput)
-  costs_df[,2] <- as.numeric(costs_df[,2])
+  costs_df <- calculateCosts(selectedCntry = selectedCntry, 
+                             medIncInput = medIncInput, 
+                             oopInput = oopInput, 
+                             uhcInput = uhcInput)
+  # costs_df[10,] <- c("UHC Input", uhcInput)
+  # costs_df[11,] <- c("OOP Input", oopInput)
+  # costs_df[12,] <- c("MI Input", medIncInput)
+  # costs_df[,2] <- as.numeric(costs_df[,2])
   
   ggplot(costs_df) + 
     geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
@@ -459,7 +469,6 @@ server <- function(input, output, session) {
         output$studyTable <- renderTable({
             lookup_studies(input$country)
         })
-        
         
     
 }
