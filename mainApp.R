@@ -90,7 +90,11 @@ calculateCosts <- function(selectedCntry,
     cntryRE <- cntryREs %>% filter(Country == selectedCntry) %>% select(Value) %>% 
                unlist() %>% as.numeric()
     
-    allCosts = data.frame(Type = c("Pre-treatment\ndirect medical", 
+    allCosts = data.frame(Category = c(rep("Pre-treatment", 3), 
+                                       rep("Intensive treatment", 3),
+                                       rep("Continuation treatment", 3)), 
+                          Phase =   rep(c("Direct medical", "Direct non-medical", "Indirect"), 3), 
+                          Type = c("Pre-treatment\ndirect medical", 
                                    "Pre-treatment\ndirect non-medical",
                                    "Pre-treatment\nindirect",
                                    
@@ -190,11 +194,37 @@ plot_costs <- function(selectedCntry,
     ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
     coord_flip() + theme_minimal(base_size = 14) + 
     expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
-  xlab("") + ylab("Costs (2024 USD)") +
+    xlab("") + ylab("Costs (2024 USD)") +
     geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
              
 }
 
+plot_stackP_costs <- function(selectedCntry,
+                             costs_df
+){
+    ggplot(costs_df) + 
+        geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black") + 
+        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
+        coord_flip() + theme_minimal(base_size = 14) + 
+        expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
+        scale_fill_manual(values = c("#A8DCAB", "#519755", "#DBAAA7")) + 
+        xlab("") + ylab("Costs (2024 USD)") +
+        theme(legend.position = "bottom")
+        # geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
+}
+
+plot_stackC_costs <- function(selectedCntry,
+                             costs_df
+){
+    ggplot(costs_df) + 
+        geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
+        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
+        coord_flip() + theme_minimal(base_size = 14) + 
+        expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
+        scale_fill_manual(values = c("#A8DCAB", "#519755", "#DBAAA7")) + 
+        xlab("") + ylab("Costs (2024 USD)")+
+        theme(legend.position = "bottom")
+}
 
 ##############################################################################|
 ##### Function to lookup relevant studies                                    ##
@@ -306,7 +336,11 @@ ui <- page_navbar(
                           title = "",
                           ##### Plot of costs #####
                           nav_panel("Cost plots", 
-                          plotOutput(outputId = "costbar")),
+                          plotOutput(outputId = "costCstack"),
+                          plotOutput(outputId = "costPstack"),
+                          # tags$div(tags$p(HTML("<br><b>Plot2 </b>"))),
+                          plotOutput(outputId = "costbar")
+                          ),
                           ##### Table of costs #####
                           nav_panel("Cost table",
                                     tableOutput(outputId = "costTable")),
@@ -394,7 +428,8 @@ server <- function(input, output, session) {
     
     
     reactiveVar <- reactiveValues(uhcReact = NULL, oopReact = NULL, medIncReact = NULL, 
-                                  calcCosts = NULL, costPlot = NULL)
+                                  calcCosts = NULL, costPlot = NULL, 
+                                  costPlotStckP = NULL, costPlotStckC = NULL)
     
     #### Observe the country selected 
     observeEvent(input$country, {
@@ -470,13 +505,25 @@ server <- function(input, output, session) {
                                    reactiveVar$calcCosts
             )
             reactiveVar$costPlot
-            # plot_costs(input$country, 
-            #            reactiveVar$calcCosts
-            #            )
+        })
+        
+        output$costPstack <- renderPlot({
+            reactiveVar$costPlotStckP <- plot_stackP_costs(input$country, 
+                                                         reactiveVar$calcCosts
+            )
+            reactiveVar$costPlotStckP
+        })
+        
+        output$costCstack <- renderPlot({
+            reactiveVar$costPlotStckC <- plot_stackC_costs(input$country, 
+                                                         reactiveVar$calcCosts
+            )
+            reactiveVar$costPlotStckC
         })
         
         #### Present country specific costs as table
-        output$costTable <- renderTable({reactiveVar$calcCosts
+        output$costTable <- renderTable({
+            reactiveVar$calcCosts
         })
         
         #### Plot country specific covariates as bar plot
