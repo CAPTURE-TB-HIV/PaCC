@@ -94,17 +94,6 @@ calculateCosts <- function(selectedCntry,
                                        rep("Intensive treatment", 3),
                                        rep("Continuation treatment", 3)), 
                           Phase =   rep(c("Direct medical", "Direct non-medical", "Indirect"), 3), 
-                          Type = c("Pre-treatment\ndirect medical", 
-                                   "Pre-treatment\ndirect non-medical",
-                                   "Pre-treatment\nindirect",
-                                   
-                                   "Intensive treatment\ndirect medical", 
-                                   "Intensive treatment\ndirect non-medical",
-                                   "Intensive treatment\nindirect", 
-                                   
-                                   "Continuation treatment\ndirect medical", 
-                                   "Continuation treatment\ndirect non-medical",
-                                   "Continuation treatment\nindirect"), 
                           Estimate = c(
                                   exp(params["beta_dme_prediag"] + cntryRE + 
                                       params["beta_med_income_dme_prediag"] * covs$scaled.med.inc +
@@ -185,19 +174,6 @@ calculateCosts <- function(selectedCntry,
 ##############################################################################|
 ##### Function to create a bar plot of calculated costs for selected country ##
 ##############################################################################|
-plot_costs <- function(selectedCntry,
-                       costs_df
-                       ){
-  
-  ggplot(costs_df) + 
-    geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
-    ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
-    coord_flip() + theme_minimal(base_size = 14) + 
-    expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
-    xlab("") + ylab("Costs (2024 USD)") +
-    geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
-             
-}
 
 plot_stackP_costs <- function(selectedCntry,
                              costs_df
@@ -224,6 +200,35 @@ plot_stackC_costs <- function(selectedCntry,
         scale_fill_manual(values = c("#A8DCAB", "#519755", "#DBAAA7")) + 
         xlab("") + ylab("Costs (2024 USD)")+
         theme(legend.position = "bottom")
+}
+
+
+plot_costs <- function(selectedCntry,
+                       costs_df
+){
+    ### CREATE THE TYPE VARIABLE 
+    costs_dfB <- costs_df %>% 
+        mutate(Type = c("Pre-treatment\ndirect medical", 
+             "Pre-treatment\ndirect non-medical",
+             "Pre-treatment\nindirect",
+             
+             "Intensive treatment\ndirect medical", 
+             "Intensive treatment\ndirect non-medical",
+             "Intensive treatment\nindirect", 
+             
+             "Continuation treatment\ndirect medical", 
+             "Continuation treatment\ndirect non-medical",
+             "Continuation treatment\nindirect")) 
+    
+    
+    ggplot(costs_dfB) + 
+        geom_col(aes(x=Type, y=Estimate), fill = "#A8DCAB", color="black") + 
+        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
+        coord_flip() + theme_minimal(base_size = 14) + 
+        expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
+        xlab("") + ylab("Costs (2024 USD)") +
+        geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
+    
 }
 
 ##############################################################################|
@@ -337,18 +342,17 @@ ui <- page_navbar(
                           ##### Plot of costs #####
                           nav_panel("Cost plots", 
                           plotOutput(outputId = "costCstack"),
-                          plotOutput(outputId = "costPstack"),
-                          # tags$div(tags$p(HTML("<br><b>Plot2 </b>"))),
-                          plotOutput(outputId = "costbar")
+                          plotOutput(outputId = "costPstack")
+                          # plotOutput(outputId = "costbar")
                           ),
                           ##### Table of costs #####
                           nav_panel("Cost table",
                                     tableOutput(outputId = "costTable")),
                           ##### Plot of covariates #####
-                          nav_panel("Covariate plots", 
-                                    plotOutput(outputId = "covariates")), 
+                          # nav_panel("Covariate plots", 
+                          #           plotOutput(outputId = "covariates")), 
                           
-                          nav_panel("Relevant studies", 
+                          nav_panel("Country-specific cost studies", 
                                     tableOutput(outputId = "studyTable")), 
                   ),
                   
@@ -497,16 +501,7 @@ server <- function(input, output, session) {
         shinyjs::disable("reRun")
     })
 
-        #### Plot country specific costs as bar plot
-    
-
-        output$costbar <- renderPlot({
-            reactiveVar$costPlot <- plot_costs(input$country, 
-                                   reactiveVar$calcCosts
-            )
-            reactiveVar$costPlot
-        })
-        
+        #### Plot country specific costs as bar plots
         output$costPstack <- renderPlot({
             reactiveVar$costPlotStckP <- plot_stackP_costs(input$country, 
                                                          reactiveVar$calcCosts
@@ -520,6 +515,13 @@ server <- function(input, output, session) {
             )
             reactiveVar$costPlotStckC
         })
+        
+        # output$costbar <- renderPlot({
+        #     reactiveVar$costPlot <- plot_costs(input$country, 
+        #                            reactiveVar$calcCosts
+        #     )
+        #     reactiveVar$costPlot
+        # })
         
         #### Present country specific costs as table
         output$costTable <- renderTable({
@@ -540,18 +542,18 @@ server <- function(input, output, session) {
         output$downloadFigure <- downloadHandler(
             filename = function() {
                 # Use the selected dataset as the suggested file name
-                paste0("PaCC_estimate_",selectedCntry, ".pdf")
+                paste0("PaCC_estimate_", selectedCntry, ".pdf")
             },
             content = function(file) {
                 # Write the dataset to the `file` that will be downloaded
-                ggsave(reactiveVar$costPlot, filename = file, width=11, height=8.5, unit = "in")
+                ggsave(reactiveVar$costPlotStckP, filename = file, width=11, height=8.5, unit = "in")
             }
         )
         
         output$downloadTable <- downloadHandler(
             filename = function() {
                 # Use the selected dataset as the suggested file name
-                paste0("PaCC_estimate_",selectedCntry, ".csv")
+                paste0("PaCC_estimate_", selectedCntry, ".csv")
             },
             content = function(file) {
                 # Write the dataset to the `file` that will be downloaded
