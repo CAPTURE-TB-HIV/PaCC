@@ -542,7 +542,7 @@ server <- function(input, output, session) {
         output$downloadFigure <- downloadHandler(
             filename = function() {
                 # Use the selected dataset as the suggested file name
-                paste0("PaCC_estimate_", selectedCntry, ".pdf")
+                paste0("PaCC_estimate_",  input$country, ".pdf")
             },
             content = function(file) {
                 # Write the dataset to the `file` that will be downloaded
@@ -553,7 +553,7 @@ server <- function(input, output, session) {
         output$downloadTable <- downloadHandler(
             filename = function() {
                 # Use the selected dataset as the suggested file name
-                paste0("PaCC_estimate_", selectedCntry, ".csv")
+                paste0("PaCC_estimate_", input$country, ".csv")
             },
             content = function(file) {
                 # Write the dataset to the `file` that will be downloaded
