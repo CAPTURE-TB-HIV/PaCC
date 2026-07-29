@@ -354,32 +354,31 @@ ui <- page_navbar(
                           ##### Plot of costs #####
                           nav_panel("Cost plots", 
                           plotOutput(outputId = "costCstack"),
-                          plotOutput(outputId = "costPstack")
+                          plotOutput(outputId = "costPstack"),
+                          
+                          downloadButton(
+                              "downloadFigure",
+                              label = "Download cost figures",
+                              icon = shiny::icon("download"),
+                              enabled = TRUE
+                          )
                           # plotOutput(outputId = "costbar")
                           ),
                           ##### Table of costs #####
                           nav_panel("Cost table",
-                                    tableOutput(outputId = "costTable")),
+                                    tableOutput(outputId = "costTable"),
+                                    downloadButton(
+                                        "downloadTable",
+                                        label = "Download cost table",
+                                        icon = shiny::icon("download"),
+                                        enabled = TRUE
+                                    )),
                           ##### Plot of covariates #####
                           # nav_panel("Covariate plots", 
                           #           plotOutput(outputId = "covariates")), 
                           
                           nav_panel("Country-specific cost studies", 
                                     tableOutput(outputId = "studyTable")), 
-                  ),
-                  
-                  downloadButton(
-                      "downloadFigure",
-                      label = "Download cost figures",
-                      icon = shiny::icon("download"),
-                      enabled = TRUE
-                  ), 
-                  
-                  downloadButton(
-                      "downloadTable",
-                      label = "Download cost table",
-                      icon = shiny::icon("download"),
-                      enabled = TRUE
                   ), 
               
               ),
