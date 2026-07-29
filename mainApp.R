@@ -11,7 +11,6 @@ library(bslib)
 #### Repository URL 
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 
-
 ##############################################################################|
 ##### Read in the required data ##
 ##### If need to reduce bloat, this could be optimized to only read in 
@@ -368,7 +367,7 @@ ui <- page_navbar(
                   
                   downloadButton(
                       "downloadFigure",
-                      label = "Download cost figure",
+                      label = "Download cost figures",
                       icon = shiny::icon("download"),
                       enabled = TRUE
                   ), 
@@ -556,7 +555,15 @@ server <- function(input, output, session) {
             },
             content = function(file) {
                 # Write the dataset to the `file` that will be downloaded
-                ggsave(reactiveVar$costPlotStckP, filename = file, width=11, height=8.5, unit = "in")
+                # ggsave(reactiveVar$costPlotStckP, filename = file, width=11, height=8.5, unit = "in")
+                pList <- list(reactiveVar$costPlotStckP, 
+                              reactiveVar$costPlotStckC)
+                
+                pdf(file = file, onefile = TRUE, width=11, height=8.5)
+                for(i in 1:length(pList)){
+                    print(pList[[i]])
+                }
+                dev.off()
             }
         )
         
@@ -571,9 +578,6 @@ server <- function(input, output, session) {
             }
         )
         
-        
-
-        
     
 }
 
@@ -582,4 +586,3 @@ server <- function(input, output, session) {
 ###############################################################################
 
 shinyApp(ui = ui, server = server)
-
