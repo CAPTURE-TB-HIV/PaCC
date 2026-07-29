@@ -186,13 +186,14 @@ plot_stackP_costs <- function(selectedCntry,
                                                                "Direct\nmedical"
                ), ordered=TRUE))) + 
         geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black") + 
-        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
+        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by cost category")) + 
         coord_flip() + theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
         scale_fill_manual(values = c("#60697C", "#94AEE9","#B5C7EA"), 
                           guide = guide_legend(reverse = TRUE)) + 
         xlab("") + ylab("Costs (2024 USD)") +
-        theme(legend.position = "bottom")
+        theme(legend.position = "bottom",
+              plot.title = element_text(size = 18), axis.text = element_text(size = 16))
         # geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
 }
 
@@ -205,13 +206,14 @@ plot_stackC_costs <- function(selectedCntry,
                                                            "Direct\nmedical"
                                                              ), ordered=TRUE))) + 
         geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
-        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
+        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by treatment phase")) + 
         coord_flip() + theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
         scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
                                      guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
         xlab("") + ylab("Costs (2024 USD)")+
-        theme(legend.position = "bottom")
+        theme(legend.position = "bottom", 
+              plot.title = element_text(size = 18), axis.text = element_text(size = 16))
 }
 
 
@@ -294,11 +296,16 @@ ui <- page_navbar(
     nav_panel(title = "PaCC" , 
               setBackgroundColor("#BE91BE"),
               
-              titlePanel(title = span(img(src = "logoZoom.png", height = 100), "TB Patient Cost Calculator")),
+              # titlePanel(title = span(img(src = "logoZoom.png", height = 100), "TB Patient Cost Calculator")),
 
               ##### Sidebar which includes the country dropdown selection #####
               sidebarLayout(
+                  
                   sidebarPanel(
+                      titlePanel(title = span(img(src = "logoZoom.png", height = 100), "TB Patient Cost Calculator")),
+                      
+                      tags$div(tags$p(HTML("<b>
+                        Select a country below and the per-episode household costs of TB will be automatically calculated.</b>" ))),
                       
                       selectInput(
                           "country",
@@ -335,7 +342,7 @@ ui <- page_navbar(
                       
                       tags$div(tags$p(HTML("<br><b>
                         To calculate costs with custom covariate values, click the 'Customize covariates' button below. 
-                        Update the values, then click the 'Calculate costs' button. </b>"))),
+                        Update the values, then click the 'Calculate costs' button to recalculate costs. </b>"))),
                       
                       actionButton('custCovs', 'Customize covariates',
                                    style="color: #000000; background-color: #FFFFFF"),
@@ -353,8 +360,8 @@ ui <- page_navbar(
                           title = "",
                           ##### Plot of costs #####
                           nav_panel("Cost plots", 
-                          plotOutput(outputId = "costCstack"),
-                          plotOutput(outputId = "costPstack"),
+                          plotOutput(outputId = "costCstack", height = "490px"),
+                          plotOutput(outputId = "costPstack", height = "490px"),
                           
                           downloadButton(
                               "downloadFigure",
