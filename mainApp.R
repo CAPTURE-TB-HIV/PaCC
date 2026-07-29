@@ -178,12 +178,17 @@ calculateCosts <- function(selectedCntry,
 plot_stackP_costs <- function(selectedCntry,
                              costs_df
 ){
-    ggplot(costs_df) + 
+    ggplot(costs_df %>% 
+               dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
+                                                               "Direct non-medical", 
+                                                               "Direct medical"
+               ), ordered=TRUE))) + 
         geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black") + 
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
         coord_flip() + theme_minimal(base_size = 14) + 
         expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
-        scale_fill_manual(values = c("#A8DCAB", "#519755", "#DBAAA7")) + 
+        scale_fill_manual(values = c("#60697C", "#94AEE9","#B5C7EA"), 
+                          guide = guide_legend(reverse = TRUE)) + 
         xlab("") + ylab("Costs (2024 USD)") +
         theme(legend.position = "bottom")
         # geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
@@ -192,12 +197,17 @@ plot_stackP_costs <- function(selectedCntry,
 plot_stackC_costs <- function(selectedCntry,
                              costs_df
 ){
-    ggplot(costs_df) + 
+    ggplot(costs_df %>% 
+           dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
+                                                           "Direct non-medical", 
+                                                           "Direct medical"
+                                                             ), ordered=TRUE))) + 
         geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
         coord_flip() + theme_minimal(base_size = 14) + 
         expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
-        scale_fill_manual(values = c("#A8DCAB", "#519755", "#DBAAA7")) + 
+        scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
+                                     guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
         xlab("") + ylab("Costs (2024 USD)")+
         theme(legend.position = "bottom")
 }
