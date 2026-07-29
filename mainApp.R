@@ -89,7 +89,7 @@ calculateCosts <- function(selectedCntry,
     cntryRE <- cntryREs %>% filter(Country == selectedCntry) %>% select(Value) %>% 
                unlist() %>% as.numeric()
     
-    allCosts = data.frame(Category = c(rep("Pre-treatment", 3), 
+    allCosts <- data.frame(Category = c(rep("Pre-treatment", 3), 
                                        rep("Intensive treatment", 3),
                                        rep("Continuation treatment", 3)), 
                           Phase =   rep(c("Direct medical", "Direct non-medical", "Indirect"), 3), 
@@ -165,6 +165,9 @@ calculateCosts <- function(selectedCntry,
                                       exp(params["beta_year_ie_contntx"] * 1.991117) *       
                                       (1-params["prob_cost_zero"]) 
                           ))
+    
+    ### Round to nearest dollar 
+    allCosts$Estimate <- round(allCosts$Estimate)
     
     return(allCosts)
 }
@@ -535,7 +538,7 @@ server <- function(input, output, session) {
         #### Present country specific costs as table
         output$costTable <- renderTable({
             reactiveVar$calcCosts
-        })
+        }, digits = 0)
         
         #### Plot country specific covariates as bar plot
         output$covariates <- renderPlot({
@@ -555,7 +558,6 @@ server <- function(input, output, session) {
             },
             content = function(file) {
                 # Write the dataset to the `file` that will be downloaded
-                # ggsave(reactiveVar$costPlotStckP, filename = file, width=11, height=8.5, unit = "in")
                 pList <- list(reactiveVar$costPlotStckP, 
                               reactiveVar$costPlotStckC)
                 
