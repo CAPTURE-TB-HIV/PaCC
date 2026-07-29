@@ -90,9 +90,9 @@ calculateCosts <- function(selectedCntry,
                unlist() %>% as.numeric()
     
     allCosts <- data.frame(Category = c(rep("Pre-treatment", 3), 
-                                       rep("Intensive treatment", 3),
-                                       rep("Continuation treatment", 3)), 
-                          Phase =   rep(c("Direct medical", "Direct non-medical", "Indirect"), 3), 
+                                       rep("Intensive\ntreatment", 3),
+                                       rep("Continuation\ntreatment", 3)), 
+                          Phase =   rep(c("Direct\nmedical", "Direct\nnon-medical", "Indirect"), 3), 
                           Estimate = c(
                                   exp(params["beta_dme_prediag"] + cntryRE + 
                                       params["beta_med_income_dme_prediag"] * covs$scaled.med.inc +
@@ -182,12 +182,12 @@ plot_stackP_costs <- function(selectedCntry,
 ){
     ggplot(costs_df %>% 
                dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
-                                                               "Direct non-medical", 
-                                                               "Direct medical"
+                                                               "Direct\nnon-medical", 
+                                                               "Direct\nmedical"
                ), ordered=TRUE))) + 
         geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black") + 
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
-        coord_flip() + theme_minimal(base_size = 14) + 
+        coord_flip() + theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
         scale_fill_manual(values = c("#60697C", "#94AEE9","#B5C7EA"), 
                           guide = guide_legend(reverse = TRUE)) + 
@@ -201,12 +201,12 @@ plot_stackC_costs <- function(selectedCntry,
 ){
     ggplot(costs_df %>% 
            dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
-                                                           "Direct non-medical", 
-                                                           "Direct medical"
+                                                           "Direct\nnon-medical", 
+                                                           "Direct\nmedical"
                                                              ), ordered=TRUE))) + 
         geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "(2024 USD)")) + 
-        coord_flip() + theme_minimal(base_size = 14) + 
+        coord_flip() + theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
         scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
                                      guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
