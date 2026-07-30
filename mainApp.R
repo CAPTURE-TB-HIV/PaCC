@@ -337,7 +337,8 @@ ui <- page_navbar(
                           choices = 2009:2024
                       ),
                       
-                      tags$div(tags$p(HTML("<br><b>
+                      hr(),
+                      tags$div(tags$p(HTML("<b>
                         Default covariate values for selected country and year: </b>"))),
                       
                       # numericInput( 
