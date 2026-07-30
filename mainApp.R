@@ -18,7 +18,7 @@ post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 ##### user. 
 ##############################################################################|
 ##### External covariate data 
-covariates <- readRDS("utilities/data/covariates.rds")
+covariates <- readRDS("utilities/data/covariatesTime.rds")
 ##### Model parameter estimates 
 params <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),2] %>% as.numeric()
 names(params) <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),1]
@@ -27,7 +27,7 @@ names(params) <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),1]
 cntryREs <- readRDS("utilities/data/cntryRndEff.rds")
 
 ##### Available countries
-countries <- covariates$study.country
+countries <- sort(unique(covariates$study.country))
 
 ##### Relevant studies 
 studies <- readRDS("utilities/data/tbPatientCostStudies.rds")
@@ -37,8 +37,10 @@ studies <- readRDS("utilities/data/tbPatientCostStudies.rds")
 ##### Function to create a bar plot of covariate inputs for selected country ##
 ##############################################################################|
 
-lookup_inputs <- function(selectedCntry){
-    covariates_filt <- covariates %>% filter(study.country == selectedCntry) %>% 
+lookup_inputs <- function(selectedCntry, 
+                          selectedYear = 2024){
+    covariates_filt <- covariates %>% filter(study.country == selectedCntry, 
+                                             study.end.year == selectedYear) %>% 
         mutate(scale.median.income = median.income /100,
                scale.median.income.trunc = median.income.trunc /100) %>% 
         rename("Median individual\nannual income\n(in 100s of 2024 USD)" = scale.median.income.trunc, 
@@ -49,14 +51,14 @@ lookup_inputs <- function(selectedCntry){
 }
 
 plot_inputs <- function(selectedCntry){
-
+    
     covariates_filt <- lookup_inputs(selectedCntry)
     
     ggplot(data = covariates_filt %>% 
-                  pivot_longer(cols= c(
-                       `Median individual\nannual income\n(in 100s of 2024 USD)`, 
-                       `Universal healthcare\ncoverage index`,
-                       `Out-of-pocket percentage\nof current health\nexpenditures`),names_to = "Covariate", values_to = "Value")) + 
+               pivot_longer(cols= c(
+                   `Median individual\nannual income\n(in 100s of 2024 USD)`, 
+                   `Universal healthcare\ncoverage index`,
+                   `Out-of-pocket percentage\nof current health\nexpenditures`),names_to = "Covariate", values_to = "Value")) + 
         geom_col(aes(x=Covariate, y=Value), fill = "#A8DCAB", color="black") + theme_minimal(base_size = 14) + 
         ggtitle(paste("Values of covariates used to predict patient costs in", selectedCntry)) + 
         coord_flip() +
@@ -77,96 +79,97 @@ calculateCosts <- function(selectedCntry,
                            uhcInput) {
     
     covs <- covariates %>% 
-                       filter(study.country == selectedCntry) %>% 
-                       mutate(scaled.med.inc = (log.median.income.trunc - 7.667872) / 0.8402527, 
-                              scaled.oop.che = (oop.perc.che.trunc - 39.6697) / 16.0616, 
-                              scaled.uhc =     (uhc.index.trunc - 61.46697) / 15.68885)
+        filter(study.country == selectedCntry,
+               study.end.year == yearInput) %>% 
+        mutate(scaled.med.inc = (log.median.income.trunc - 7.667872) / 0.8402527, 
+               scaled.oop.che = (oop.perc.che.trunc - 39.6697) / 16.0616, 
+               scaled.uhc =     (uhc.index.trunc - 61.46697) / 15.68885)
     
     covs[, "scaled.med.inc"] <- (log(medIncInput) - 7.667872) / 0.8402527
     covs[, "scaled.oop.che"] <- (oopInput - 39.6697) / 16.0616
     covs[, "scaled.uhc"]     <- (uhcInput - 61.46697) / 15.68885
     
     cntryRE <- cntryREs %>% filter(Country == selectedCntry) %>% select(Value) %>% 
-               unlist() %>% as.numeric()
+        unlist() %>% as.numeric()
     
     scaledYear <- (yearInput - 2017.689) / 3.153565
     
     allCosts <- data.frame(Category = c(rep("Pre-treatment", 3), 
-                                       rep("Intensive\ntreatment", 3),
-                                       rep("Continuation\ntreatment", 3)), 
-                          Phase =   rep(c("Direct\nmedical", "Direct\nnon-medical", "Indirect"), 3), 
-                          Estimate = c(
-                                  exp(params["beta_dme_prediag"] + cntryRE + 
-                                      params["beta_med_income_dme_prediag"] * covs$scaled.med.inc +
-                                      params["beta_oop_che_dme_prediag"] * covs$scaled.oop.che +
-                                      params["beta_uhc_dme_prediag"] * covs$scaled.uhc) *
-                                  exp(params["beta_year_dme_prediag"] * scaledYear) *       
-                                  (1-params["prob_cost_zero"]), 
-                                  
-                                  ### DNME PREDIAGNOSIS 
-                                  exp(params["beta_dnme_prediag"] + cntryRE + 
-                                      params["beta_med_income_dnme_prediag"] * covs$scaled.med.inc +
-                                      params["beta_oop_che_dnme_prediag"] * covs$scaled.oop.che +
-                                      params["beta_uhc_dnme_prediag"] * covs$scaled.uhc) *
-                                  exp(params["beta_year_dnme_prediag"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]), 
-                                  
-                                  ### INDIRECT PREDIAGNOSIS 
-                                  exp(params["beta_ie_prediag"] + cntryRE + 
-                                          params["beta_med_income_ie_prediag"] * covs$scaled.med.inc +
-                                          params["beta_oop_che_ie_prediag"] * covs$scaled.oop.che +
-                                          params["beta_uhc_ie_prediag"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_ie_prediag"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]), 
-                                  
-                                  ### DME NTENSIVE TREATMENT  
-                                  exp(params["beta_dme_intsvtx"] + cntryRE + 
-                                      params["beta_med_income_dme_intsvtx"] * covs$scaled.med.inc +
-                                      params["beta_oop_che_dme_intsvtx"] * covs$scaled.oop.che +
-                                      params["beta_uhc_dme_intsvtx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dme_intsvtx"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]), 
-                                  
-                                  ### DNME NTENSIVE TREATMENT  
-                                  exp(params["beta_dnme_intsvtx"] + cntryRE + 
-                                          params["beta_med_income_dnme_intsvtx"] * covs$scaled.med.inc +
-                                          params["beta_oop_che_dnme_intsvtx"] * covs$scaled.oop.che +
-                                          params["beta_uhc_dnme_intsvtx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dnme_intsvtx"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]), 
-                                  
-                                  ### INDIRECT INTENSIVE TREATMENT 
-                                  exp(params["beta_ie_intsvtx"] + cntryRE + 
-                                          params["beta_med_income_ie_intsvtx"] * covs$scaled.med.inc +
-                                          params["beta_oop_che_ie_intsvtx"] * covs$scaled.oop.che +
-                                          params["beta_uhc_ie_intsvtx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_ie_intsvtx"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]), 
-                                  
-                                  ### DME CONTINUATION TREATMENT  
-                                  exp(params["beta_dme_contntx"] + cntryRE + 
-                                          params["beta_med_income_dme_contntx"] * covs$scaled.med.inc +
-                                          params["beta_oop_che_dme_contntx"] * covs$scaled.oop.che +
-                                          params["beta_uhc_dme_contntx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dme_contntx"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]), 
-                                  
-                                  ### DNME CONTINUATION TREATMENT  
-                                  exp(params["beta_dnme_contntx"] + cntryRE + 
-                                          params["beta_med_income_dnme_contntx"] * covs$scaled.med.inc +
-                                          params["beta_oop_che_dnme_contntx"] * covs$scaled.oop.che +
-                                          params["beta_uhc_dnme_contntx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dnme_contntx"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]), 
-                                  
-                                  ### INDIRECT CONTINUATION TREATMENT 
-                                  exp(params["beta_ie_contntx"] + cntryRE + 
-                                          params["beta_med_income_ie_contntx"] * covs$scaled.med.inc +
-                                          params["beta_oop_che_ie_contntx"] * covs$scaled.oop.che +
-                                          params["beta_uhc_ie_contntx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_ie_contntx"] * scaledYear) *       
-                                      (1-params["prob_cost_zero"]) 
-                          ))
+                                        rep("Intensive\ntreatment", 3),
+                                        rep("Continuation\ntreatment", 3)), 
+                           Phase =   rep(c("Direct\nmedical", "Direct\nnon-medical", "Indirect"), 3), 
+                           Estimate = c(
+                               exp(params["beta_dme_prediag"] + cntryRE + 
+                                       params["beta_med_income_dme_prediag"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_dme_prediag"] * covs$scaled.oop.che +
+                                       params["beta_uhc_dme_prediag"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_dme_prediag"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### DNME PREDIAGNOSIS 
+                               exp(params["beta_dnme_prediag"] + cntryRE + 
+                                       params["beta_med_income_dnme_prediag"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_dnme_prediag"] * covs$scaled.oop.che +
+                                       params["beta_uhc_dnme_prediag"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_dnme_prediag"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### INDIRECT PREDIAGNOSIS 
+                               exp(params["beta_ie_prediag"] + cntryRE + 
+                                       params["beta_med_income_ie_prediag"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_ie_prediag"] * covs$scaled.oop.che +
+                                       params["beta_uhc_ie_prediag"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_ie_prediag"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### DME NTENSIVE TREATMENT  
+                               exp(params["beta_dme_intsvtx"] + cntryRE + 
+                                       params["beta_med_income_dme_intsvtx"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_dme_intsvtx"] * covs$scaled.oop.che +
+                                       params["beta_uhc_dme_intsvtx"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_dme_intsvtx"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### DNME NTENSIVE TREATMENT  
+                               exp(params["beta_dnme_intsvtx"] + cntryRE + 
+                                       params["beta_med_income_dnme_intsvtx"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_dnme_intsvtx"] * covs$scaled.oop.che +
+                                       params["beta_uhc_dnme_intsvtx"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_dnme_intsvtx"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### INDIRECT INTENSIVE TREATMENT 
+                               exp(params["beta_ie_intsvtx"] + cntryRE + 
+                                       params["beta_med_income_ie_intsvtx"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_ie_intsvtx"] * covs$scaled.oop.che +
+                                       params["beta_uhc_ie_intsvtx"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_ie_intsvtx"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### DME CONTINUATION TREATMENT  
+                               exp(params["beta_dme_contntx"] + cntryRE + 
+                                       params["beta_med_income_dme_contntx"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_dme_contntx"] * covs$scaled.oop.che +
+                                       params["beta_uhc_dme_contntx"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_dme_contntx"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### DNME CONTINUATION TREATMENT  
+                               exp(params["beta_dnme_contntx"] + cntryRE + 
+                                       params["beta_med_income_dnme_contntx"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_dnme_contntx"] * covs$scaled.oop.che +
+                                       params["beta_uhc_dnme_contntx"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_dnme_contntx"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]), 
+                               
+                               ### INDIRECT CONTINUATION TREATMENT 
+                               exp(params["beta_ie_contntx"] + cntryRE + 
+                                       params["beta_med_income_ie_contntx"] * covs$scaled.med.inc +
+                                       params["beta_oop_che_ie_contntx"] * covs$scaled.oop.che +
+                                       params["beta_uhc_ie_contntx"] * covs$scaled.uhc) *
+                                   exp(params["beta_year_ie_contntx"] * scaledYear) *       
+                                   (1-params["prob_cost_zero"]) 
+                           ))
     
     ### Round to nearest dollar 
     allCosts$Estimate <- round(allCosts$Estimate)
@@ -180,7 +183,7 @@ calculateCosts <- function(selectedCntry,
 ##############################################################################|
 
 plot_stackP_costs <- function(selectedCntry,
-                             costs_df
+                              costs_df
 ){
     ggplot(costs_df %>% 
                dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
@@ -196,23 +199,23 @@ plot_stackP_costs <- function(selectedCntry,
         xlab("") + ylab("Costs (2024 USD)") +
         theme(legend.position = "bottom",
               plot.title = element_text(size = 18), axis.text = element_text(size = 16))
-        # geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
+    # geom_text(aes(x=Type, y=Estimate, label=round(Estimate)), hjust = -.75)
 }
 
 plot_stackC_costs <- function(selectedCntry,
-                             costs_df
+                              costs_df
 ){
     ggplot(costs_df %>% 
-           dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
-                                                           "Direct\nnon-medical", 
-                                                           "Direct\nmedical"
-                                                             ), ordered=TRUE))) + 
+               dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
+                                                               "Direct\nnon-medical", 
+                                                               "Direct\nmedical"
+               ), ordered=TRUE))) + 
         geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by treatment phase")) + 
         coord_flip() + theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
         scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
-                                     guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
+                          guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
         xlab("") + ylab("Costs (2024 USD)")+
         theme(legend.position = "bottom", 
               plot.title = element_text(size = 18), axis.text = element_text(size = 16))
@@ -225,16 +228,16 @@ plot_costs <- function(selectedCntry,
     ### CREATE THE TYPE VARIABLE 
     costs_dfB <- costs_df %>% 
         mutate(Type = c("Pre-treatment\ndirect medical", 
-             "Pre-treatment\ndirect non-medical",
-             "Pre-treatment\nindirect",
-             
-             "Intensive treatment\ndirect medical", 
-             "Intensive treatment\ndirect non-medical",
-             "Intensive treatment\nindirect", 
-             
-             "Continuation treatment\ndirect medical", 
-             "Continuation treatment\ndirect non-medical",
-             "Continuation treatment\nindirect")) 
+                        "Pre-treatment\ndirect non-medical",
+                        "Pre-treatment\nindirect",
+                        
+                        "Intensive treatment\ndirect medical", 
+                        "Intensive treatment\ndirect non-medical",
+                        "Intensive treatment\nindirect", 
+                        
+                        "Continuation treatment\ndirect medical", 
+                        "Continuation treatment\ndirect non-medical",
+                        "Continuation treatment\nindirect")) 
     
     
     ggplot(costs_dfB) + 
@@ -253,9 +256,9 @@ plot_costs <- function(selectedCntry,
 
 lookup_studies <- function(selectedCntry){
     studies_filt <- studies %>% filter(Country == selectedCntry) %>%
-                    arrange(Year) %>% 
-                    select(! c(Year, Country)) %>% 
-                    rename(`Studies identified in systematic review` = Formatted)
+        arrange(Year) %>% 
+        select(! c(Year, Country)) %>% 
+        rename(`Studies identified in systematic review` = Formatted)
     
     if (nrow(studies_filt) < 1) {
         studies_filt[1,"Studies identified in systematic review"] <- "No studies identified."
@@ -273,11 +276,11 @@ lookup_studies <- function(selectedCntry){
 ###############################################################################
 
 ui <- page_navbar( 
-        shinyjs:: useShinyjs(),
+    shinyjs:: useShinyjs(),
     
-        id = "inTabset",
-        tags$head(tags$style(HTML("a {color: black}"))),
-                   
+    id = "inTabset",
+    tags$head(tags$style(HTML("a {color: black}"))),
+    
     nav_panel(title = "About", 
               
               headerPanel(
@@ -285,7 +288,7 @@ ui <- page_navbar(
                   HTML('<center> <img src="logoZoom.png" height="500"  />')
                   
               ),
-
+              
               setBackgroundColor("#BE91BE"),
               
               p("The TB Patient Cost Calculator (TB PaCC)  estimates country-level TB patient costs for 129 low- and middle income countries. We chose the name TB PaCC to represent the significant planning and resources required among persons undergoing TB treatment. Furthermore, the economic burden of TB treatment can place financial strain on households, like carrying a heavy pack throughout a journey."),
@@ -299,7 +302,7 @@ ui <- page_navbar(
               setBackgroundColor("#BE91BE"),
               
               # titlePanel(title = span(img(src = "logoZoom.png", height = 100), "TB Patient Cost Calculator")),
-
+              
               ##### Sidebar which includes the country dropdown selection #####
               sidebarLayout(
                   
@@ -307,7 +310,7 @@ ui <- page_navbar(
                       titlePanel(title = span(img(src = "logoZoom.png", height = 100), "TB Patient Cost Calculator")),
                       
                       tags$div(tags$p(HTML("<b>
-                        Select a country below and the per-episode household costs of TB will be automatically calculated.</b>" ))),
+                        Select a country and year below and the per-episode household costs of TB will be automatically calculated.</b>" ))),
                       
                       selectInput(
                           "country",
@@ -315,16 +318,23 @@ ui <- page_navbar(
                           choices = countries
                       ),
                       
-                      tags$div(tags$p(HTML("<br><b>
-                        Default covariate values for selected country: </b>"))),
-                      
-                      numericInput( 
-                          "year", 
-                          "Year:", 
-                          value = NULL, 
-                          min = 2009, 
-                          max = 2024 
+                      selectInput(
+                          "year",
+                          selected = 2024,
+                          label = "Select a year",
+                          choices = 2009:2024
                       ),
+                      
+                      tags$div(tags$p(HTML("<br><b>
+                        Default covariate values for selected country and year: </b>"))),
+                      
+                      # numericInput( 
+                      #     "year", 
+                      #     "Year:", 
+                      #     value = NULL, 
+                      #     min = 2009, 
+                      #     max = 2024 
+                      # ),
                       
                       numericInput( 
                           "medInc", 
@@ -356,7 +366,7 @@ ui <- page_navbar(
                       
                       actionButton('custCovs', 'Customize covariates',
                                    style="color: #000000; background-color: #FFFFFF"),
-                  
+                      
                       actionButton('reRun',    '   Calculate costs  ',
                                    style="color: #000000; background-color: #FFFFFF"),
                       
@@ -364,22 +374,22 @@ ui <- page_navbar(
                   ),
                   ##### Main panel of results on right of screen
                   mainPanel(
-    
+                      
                       ##### Create an inset of tabs for the user to click through #####
                       navset_card_underline(
                           title = "",
                           ##### Plot of costs #####
                           nav_panel("Cost figures", 
-                          plotOutput(outputId = "costCstack", height = "490px"),
-                          plotOutput(outputId = "costPstack", height = "490px"),
-                          
-                          downloadButton(
-                              "downloadFigure",
-                              label = "Download cost figures",
-                              icon = shiny::icon("download"),
-                              enabled = TRUE
-                          )
-                          # plotOutput(outputId = "costbar")
+                                    plotOutput(outputId = "costCstack", height = "490px"),
+                                    plotOutput(outputId = "costPstack", height = "490px"),
+                                    
+                                    downloadButton(
+                                        "downloadFigure",
+                                        label = "Download cost figures",
+                                        icon = shiny::icon("download"),
+                                        enabled = TRUE
+                                    )
+                                    # plotOutput(outputId = "costbar")
                           ),
                           ##### Table of costs #####
                           nav_panel("Cost table",
@@ -396,53 +406,53 @@ ui <- page_navbar(
                           
                           nav_panel("Country-specific cost studies", 
                                     tableOutput(outputId = "studyTable")), 
-                  ), 
-              
+                      ), 
+                      
+                  ),
+                  
+                  # HTML('<footer>
+                  #         CAPTURE funded by Gates
+                  #       </footer>')
               ),
               
-              # HTML('<footer>
-              #         CAPTURE funded by Gates
-              #       </footer>')
-),
-
-tags$div(tags$p(HTML("<br>
+              tags$div(tags$p(HTML("<br>
                         Methodological overview provided in the Documentation tab.\nPredictive model code available "), tags$a(href=post, "in this repository.")))
-), ##### Close PaCC nav panel 
-
-nav_panel(title = "Documentation" , 
-          setBackgroundColor("#BE91BE"),
-          titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Documentation and methods behind PaCC")),
-          
-          fluidRow(
-              column(8,
-                     includeMarkdown("inst/md/docAndMethods.md"))
-          )
-), 
-
-nav_panel(title = "Guidance" , 
-          setBackgroundColor("#BE91BE"),
-          
-          titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Guidance and recommendations on TB patient costs")),
-
-          fluidRow(
-              column(8,
-                     includeMarkdown("inst/md/guidance.md"))
-          )
-          )#,
-# )
-
-# tags$footer(strong("This tool was developed by CAPTURE study team."), # strong() = bold
-#             align = "right",
-#             style = "
-#                  position:absolute;
-#                  bottom:0px;
-#                  width:100%;
-#                  height:40px;
-#                  color: black;
-#                  padding: 10px;
-#                  background-color: white;
-#                  z-index: 0;
-#                 "),
+    ), ##### Close PaCC nav panel 
+    
+    nav_panel(title = "Documentation" , 
+              setBackgroundColor("#BE91BE"),
+              titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Documentation and methods behind PaCC")),
+              
+              fluidRow(
+                  column(8,
+                         includeMarkdown("inst/md/docAndMethods.md"))
+              )
+    ), 
+    
+    nav_panel(title = "Guidance" , 
+              setBackgroundColor("#BE91BE"),
+              
+              titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Guidance and recommendations on TB patient costs")),
+              
+              fluidRow(
+                  column(8,
+                         includeMarkdown("inst/md/guidance.md"))
+              )
+    )#,
+    # )
+    
+    # tags$footer(strong("This tool was developed by CAPTURE study team."), # strong() = bold
+    #             align = "right",
+    #             style = "
+    #                  position:absolute;
+    #                  bottom:0px;
+    #                  width:100%;
+    #                  height:40px;
+    #                  color: black;
+    #                  padding: 10px;
+    #                  background-color: white;
+    #                  z-index: 0;
+    #                 "),
 )
 
 ###############################################################################
@@ -458,6 +468,8 @@ server <- function(input, output, session) {
         shinyjs::disable("reRun")
     })
     
+    ### Always start at 2024 
+    baseYear <- 2024
     
     reactiveVar <- reactiveValues(uhcReact = NULL, oopReact = NULL, 
                                   medIncReact = NULL, yearReact = NULL, 
@@ -467,13 +479,14 @@ server <- function(input, output, session) {
     #### Observe the country selected 
     observeEvent(input$country, {
         
-        covariateDF <- lookup_inputs(input$country)
+        covariateDF <- lookup_inputs(selectedCntry = input$country, 
+                                     selectedYear = baseYear)
         
-        reactiveVar$yearReact <- 2024
         reactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.trunc"]))
         reactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che"])
         reactiveVar$uhcReact <- as.numeric(covariateDF[,"uhc.index"])
-                                           
+        reactiveVar$yearReact <- baseYear
+        
         updateNumericInput(session,
                            inputId = "medInc",
                            value = round(as.numeric(covariateDF[,"median.income.trunc"])))
@@ -492,11 +505,18 @@ server <- function(input, output, session) {
         
         shinyjs::disable("uhcIndex")
         
-        updateNumericInput(session,
-                           inputId = "year",
-                           value = 2024)
         
-        shinyjs::disable("year")
+        updateSelectInput(
+            session,
+            inputId = "year",
+            selected = baseYear
+        )
+        
+        # print(input$country)
+        # print(reactiveVar$yearReact)
+        # print(reactiveVar$medIncReact)
+        # print(reactiveVar$oopReact)
+        # print(reactiveVar$uhcReact)
         
         reactiveVar$calcCosts <- calculateCosts(selectedCntry = input$country,
                                                 yearInput = reactiveVar$yearReact,
@@ -504,18 +524,51 @@ server <- function(input, output, session) {
                                                 oopInput = reactiveVar$oopReact,
                                                 uhcInput = reactiveVar$uhcReact)
     })
-
+    
+    observeEvent(input$year, {
+        reactiveVar$yearReact <- as.numeric(input$year) 
+        
+        covariateDF <- lookup_inputs(selectedCntry = input$country, 
+                                     selectedYear = as.numeric(input$year))
+        
+        reactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.trunc"]))
+        reactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che"])
+        reactiveVar$uhcReact <- as.numeric(covariateDF[,"uhc.index"])
+        
+        updateNumericInput(session,
+                           inputId = "medInc",
+                           value = round(as.numeric(covariateDF[,"median.income.trunc"])))
+        
+        updateNumericInput(session,
+                           inputId = "oopPerc",
+                           value = as.numeric(covariateDF[,"oop.perc.che"]))
+        
+        updateNumericInput(session,
+                           inputId = "uhcIndex",
+                           value = as.numeric(covariateDF[,"uhc.index"]))
+        
+        # print(input$country)
+        # print(reactiveVar$yearReact)
+        # print(reactiveVar$medIncReact)
+        # print(reactiveVar$oopReact)
+        # print(reactiveVar$uhcReact)
+        
+        reactiveVar$calcCosts <- calculateCosts(selectedCntry = input$country,
+                                                yearInput = reactiveVar$yearReact,
+                                                medIncInput = reactiveVar$medIncReact,
+                                                oopInput = reactiveVar$oopReact,
+                                                uhcInput = reactiveVar$uhcReact)
+    })
     
     ##### If the user clicks the customize covariates button, unlock the covariate boxes 
     observeEvent(input$custCovs, { 
         
-        shinyjs::enable("year")
         shinyjs::enable("medInc")
         shinyjs::enable("oopPerc")
         shinyjs::enable("uhcIndex")
         
         shinyjs::enable("reRun")
-    
+        
     })
     
     ##### Once the covariates are updated and the user clicks calculate costs, 
@@ -523,12 +576,10 @@ server <- function(input, output, session) {
     
     observeEvent(input$reRun, {
         
-        shinyjs::disable("year")
         shinyjs::disable("medInc")
         shinyjs::disable("oopPerc")
         shinyjs::disable("uhcIndex")
         
-        reactiveVar$yearReact <- input$year
         reactiveVar$medIncReact <- input$medInc
         reactiveVar$oopReact <- input$oopPerc
         reactiveVar$uhcReact <- input$uhcIndex
@@ -541,74 +592,74 @@ server <- function(input, output, session) {
         
         shinyjs::disable("reRun")
     })
-
-        #### Plot country specific costs as bar plots
-        output$costPstack <- renderPlot({
-            reactiveVar$costPlotStckP <- plot_stackP_costs(input$country, 
-                                                         reactiveVar$calcCosts
-            )
-            reactiveVar$costPlotStckP
-        })
-        
-        output$costCstack <- renderPlot({
-            reactiveVar$costPlotStckC <- plot_stackC_costs(input$country, 
-                                                         reactiveVar$calcCosts
-            )
-            reactiveVar$costPlotStckC
-        })
-        
-        # output$costbar <- renderPlot({
-        #     reactiveVar$costPlot <- plot_costs(input$country, 
-        #                            reactiveVar$calcCosts
-        #     )
-        #     reactiveVar$costPlot
-        # })
-        
-        #### Present country specific costs as table
-        output$costTable <- renderTable({
-            reactiveVar$calcCosts
-        }, digits = 0)
-        
-        #### Plot country specific covariates as bar plot
-        output$covariates <- renderPlot({
-            plot_inputs(input$country)
-        })
-        
-        #### Present country specific studies as a table
-        output$studyTable <- renderTable({
-            lookup_studies(input$country)
-        })
-        
-        
-        output$downloadFigure <- downloadHandler(
-            filename = function() {
-                # Use the selected dataset as the suggested file name
-                paste0("PaCC_estimate_",  input$country, ".pdf")
-            },
-            content = function(file) {
-                # Write the dataset to the `file` that will be downloaded
-                pList <- list(reactiveVar$costPlotStckP, 
-                              reactiveVar$costPlotStckC)
-                
-                pdf(file = file, onefile = TRUE, width=11, height=8.5)
-                for(i in 1:length(pList)){
-                    print(pList[[i]])
-                }
-                dev.off()
-            }
+    
+    #### Plot country specific costs as bar plots
+    output$costPstack <- renderPlot({
+        reactiveVar$costPlotStckP <- plot_stackP_costs(input$country, 
+                                                       reactiveVar$calcCosts
         )
-        
-        output$downloadTable <- downloadHandler(
-            filename = function() {
-                # Use the selected dataset as the suggested file name
-                paste0("PaCC_estimate_", input$country, ".csv")
-            },
-            content = function(file) {
-                # Write the dataset to the `file` that will be downloaded
-                write.csv(reactiveVar$calcCosts, file)
-            }
+        reactiveVar$costPlotStckP
+    })
+    
+    output$costCstack <- renderPlot({
+        reactiveVar$costPlotStckC <- plot_stackC_costs(input$country, 
+                                                       reactiveVar$calcCosts
         )
-        
+        reactiveVar$costPlotStckC
+    })
+    
+    # output$costbar <- renderPlot({
+    #     reactiveVar$costPlot <- plot_costs(input$country, 
+    #                            reactiveVar$calcCosts
+    #     )
+    #     reactiveVar$costPlot
+    # })
+    
+    #### Present country specific costs as table
+    output$costTable <- renderTable({
+        reactiveVar$calcCosts
+    }, digits = 0)
+    
+    #### Plot country specific covariates as bar plot
+    output$covariates <- renderPlot({
+        plot_inputs(input$country)
+    })
+    
+    #### Present country specific studies as a table
+    output$studyTable <- renderTable({
+        lookup_studies(input$country)
+    })
+    
+    
+    output$downloadFigure <- downloadHandler(
+        filename = function() {
+            # Use the selected dataset as the suggested file name
+            paste0("PaCC_estimate_",  input$country, ".pdf")
+        },
+        content = function(file) {
+            # Write the dataset to the `file` that will be downloaded
+            pList <- list(reactiveVar$costPlotStckP, 
+                          reactiveVar$costPlotStckC)
+            
+            pdf(file = file, onefile = TRUE, width=11, height=8.5)
+            for(i in 1:length(pList)){
+                print(pList[[i]])
+            }
+            dev.off()
+        }
+    )
+    
+    output$downloadTable <- downloadHandler(
+        filename = function() {
+            # Use the selected dataset as the suggested file name
+            paste0("PaCC_estimate_", input$country, ".csv")
+        },
+        content = function(file) {
+            # Write the dataset to the `file` that will be downloaded
+            write.csv(reactiveVar$calcCosts, file)
+        }
+    )
+    
     
 }
 
