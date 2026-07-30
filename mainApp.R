@@ -71,10 +71,10 @@ plot_inputs <- function(selectedCntry){
 ##############################################################################|
 
 calculateCosts <- function(selectedCntry, 
+                           yearInput = 2024,
                            medIncInput, 
                            oopInput,
-                           uhcInput,
-                           selectedYr = 2024) {
+                           uhcInput) {
     
     covs <- covariates %>% 
                        filter(study.country == selectedCntry) %>% 
@@ -89,6 +89,8 @@ calculateCosts <- function(selectedCntry,
     cntryRE <- cntryREs %>% filter(Country == selectedCntry) %>% select(Value) %>% 
                unlist() %>% as.numeric()
     
+    scaledYear <- (yearInput - 2017.689) / 3.153565
+    
     allCosts <- data.frame(Category = c(rep("Pre-treatment", 3), 
                                        rep("Intensive\ntreatment", 3),
                                        rep("Continuation\ntreatment", 3)), 
@@ -98,7 +100,7 @@ calculateCosts <- function(selectedCntry,
                                       params["beta_med_income_dme_prediag"] * covs$scaled.med.inc +
                                       params["beta_oop_che_dme_prediag"] * covs$scaled.oop.che +
                                       params["beta_uhc_dme_prediag"] * covs$scaled.uhc) *
-                                  exp(params["beta_year_dme_prediag"] * 1.991117) *       
+                                  exp(params["beta_year_dme_prediag"] * scaledYear) *       
                                   (1-params["prob_cost_zero"]), 
                                   
                                   ### DNME PREDIAGNOSIS 
@@ -106,7 +108,7 @@ calculateCosts <- function(selectedCntry,
                                       params["beta_med_income_dnme_prediag"] * covs$scaled.med.inc +
                                       params["beta_oop_che_dnme_prediag"] * covs$scaled.oop.che +
                                       params["beta_uhc_dnme_prediag"] * covs$scaled.uhc) *
-                                  exp(params["beta_year_dnme_prediag"] * 1.991117) *       
+                                  exp(params["beta_year_dnme_prediag"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]), 
                                   
                                   ### INDIRECT PREDIAGNOSIS 
@@ -114,7 +116,7 @@ calculateCosts <- function(selectedCntry,
                                           params["beta_med_income_ie_prediag"] * covs$scaled.med.inc +
                                           params["beta_oop_che_ie_prediag"] * covs$scaled.oop.che +
                                           params["beta_uhc_ie_prediag"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_ie_prediag"] * 1.991117) *       
+                                      exp(params["beta_year_ie_prediag"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]), 
                                   
                                   ### DME NTENSIVE TREATMENT  
@@ -122,7 +124,7 @@ calculateCosts <- function(selectedCntry,
                                       params["beta_med_income_dme_intsvtx"] * covs$scaled.med.inc +
                                       params["beta_oop_che_dme_intsvtx"] * covs$scaled.oop.che +
                                       params["beta_uhc_dme_intsvtx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dme_intsvtx"] * 1.991117) *       
+                                      exp(params["beta_year_dme_intsvtx"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]), 
                                   
                                   ### DNME NTENSIVE TREATMENT  
@@ -130,7 +132,7 @@ calculateCosts <- function(selectedCntry,
                                           params["beta_med_income_dnme_intsvtx"] * covs$scaled.med.inc +
                                           params["beta_oop_che_dnme_intsvtx"] * covs$scaled.oop.che +
                                           params["beta_uhc_dnme_intsvtx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dnme_intsvtx"] * 1.991117) *       
+                                      exp(params["beta_year_dnme_intsvtx"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]), 
                                   
                                   ### INDIRECT INTENSIVE TREATMENT 
@@ -138,7 +140,7 @@ calculateCosts <- function(selectedCntry,
                                           params["beta_med_income_ie_intsvtx"] * covs$scaled.med.inc +
                                           params["beta_oop_che_ie_intsvtx"] * covs$scaled.oop.che +
                                           params["beta_uhc_ie_intsvtx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_ie_intsvtx"] * 1.991117) *       
+                                      exp(params["beta_year_ie_intsvtx"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]), 
                                   
                                   ### DME CONTINUATION TREATMENT  
@@ -146,7 +148,7 @@ calculateCosts <- function(selectedCntry,
                                           params["beta_med_income_dme_contntx"] * covs$scaled.med.inc +
                                           params["beta_oop_che_dme_contntx"] * covs$scaled.oop.che +
                                           params["beta_uhc_dme_contntx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dme_contntx"] * 1.991117) *       
+                                      exp(params["beta_year_dme_contntx"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]), 
                                   
                                   ### DNME CONTINUATION TREATMENT  
@@ -154,7 +156,7 @@ calculateCosts <- function(selectedCntry,
                                           params["beta_med_income_dnme_contntx"] * covs$scaled.med.inc +
                                           params["beta_oop_che_dnme_contntx"] * covs$scaled.oop.che +
                                           params["beta_uhc_dnme_contntx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_dnme_contntx"] * 1.991117) *       
+                                      exp(params["beta_year_dnme_contntx"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]), 
                                   
                                   ### INDIRECT CONTINUATION TREATMENT 
@@ -162,7 +164,7 @@ calculateCosts <- function(selectedCntry,
                                           params["beta_med_income_ie_contntx"] * covs$scaled.med.inc +
                                           params["beta_oop_che_ie_contntx"] * covs$scaled.oop.che +
                                           params["beta_uhc_ie_contntx"] * covs$scaled.uhc) *
-                                      exp(params["beta_year_ie_contntx"] * 1.991117) *       
+                                      exp(params["beta_year_ie_contntx"] * scaledYear) *       
                                       (1-params["prob_cost_zero"]) 
                           ))
     
@@ -317,6 +319,14 @@ ui <- page_navbar(
                         Default covariate values for selected country: </b>"))),
                       
                       numericInput( 
+                          "year", 
+                          "Year:", 
+                          value = NULL, 
+                          min = 2009, 
+                          max = 2024 
+                      ),
+                      
+                      numericInput( 
                           "medInc", 
                           "Median annual household income (in 2025 INTD):", 
                           value = NULL, 
@@ -359,7 +369,7 @@ ui <- page_navbar(
                       navset_card_underline(
                           title = "",
                           ##### Plot of costs #####
-                          nav_panel("Cost plots", 
+                          nav_panel("Cost figures", 
                           plotOutput(outputId = "costCstack", height = "490px"),
                           plotOutput(outputId = "costPstack", height = "490px"),
                           
@@ -449,7 +459,8 @@ server <- function(input, output, session) {
     })
     
     
-    reactiveVar <- reactiveValues(uhcReact = NULL, oopReact = NULL, medIncReact = NULL, 
+    reactiveVar <- reactiveValues(uhcReact = NULL, oopReact = NULL, 
+                                  medIncReact = NULL, yearReact = NULL, 
                                   calcCosts = NULL, costPlot = NULL, 
                                   costPlotStckP = NULL, costPlotStckC = NULL)
     
@@ -458,6 +469,7 @@ server <- function(input, output, session) {
         
         covariateDF <- lookup_inputs(input$country)
         
+        reactiveVar$yearReact <- 2024
         reactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.trunc"]))
         reactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che"])
         reactiveVar$uhcReact <- as.numeric(covariateDF[,"uhc.index"])
@@ -480,16 +492,24 @@ server <- function(input, output, session) {
         
         shinyjs::disable("uhcIndex")
         
-        reactiveVar$calcCosts <- calculateCosts(input$country,
-                                                reactiveVar$medIncReact,
-                                                reactiveVar$oopReact,
-                                                reactiveVar$uhcReact) 
+        updateNumericInput(session,
+                           inputId = "year",
+                           value = 2024)
+        
+        shinyjs::disable("year")
+        
+        reactiveVar$calcCosts <- calculateCosts(selectedCntry = input$country,
+                                                yearInput = reactiveVar$yearReact,
+                                                medIncInput = reactiveVar$medIncReact,
+                                                oopInput = reactiveVar$oopReact,
+                                                uhcInput = reactiveVar$uhcReact)
     })
 
     
     ##### If the user clicks the customize covariates button, unlock the covariate boxes 
     observeEvent(input$custCovs, { 
-    
+        
+        shinyjs::enable("year")
         shinyjs::enable("medInc")
         shinyjs::enable("oopPerc")
         shinyjs::enable("uhcIndex")
@@ -502,19 +522,22 @@ server <- function(input, output, session) {
     ##### relock the input boxes. 
     
     observeEvent(input$reRun, {
-
+        
+        shinyjs::disable("year")
         shinyjs::disable("medInc")
         shinyjs::disable("oopPerc")
         shinyjs::disable("uhcIndex")
         
+        reactiveVar$yearReact <- input$year
         reactiveVar$medIncReact <- input$medInc
         reactiveVar$oopReact <- input$oopPerc
         reactiveVar$uhcReact <- input$uhcIndex
         
-        reactiveVar$calcCosts <- calculateCosts(input$country,
-                                                reactiveVar$medIncReact,
-                                                reactiveVar$oopReact,
-                                                reactiveVar$uhcReact) 
+        reactiveVar$calcCosts <- calculateCosts(selectedCntry = input$country,
+                                                yearInput = reactiveVar$yearReact,
+                                                medIncInput = reactiveVar$medIncReact,
+                                                oopInput = reactiveVar$oopReact,
+                                                uhcInput = reactiveVar$uhcReact)  
         
         shinyjs::disable("reRun")
     })
