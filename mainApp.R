@@ -8,6 +8,13 @@ library(stringr)
 library(ggplot2)
 library(bslib)
 
+
+################# REMOVE THIS WHEN UNCERTAINTY VALUES ADDED 
+
+tempUC <- rnorm(1000)
+
+################# REMOVE THIS WHEN UNCERTAINTY VALUES ADDED
+
 #### Repository URL 
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 
@@ -21,11 +28,14 @@ post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 covariates <- readRDS("utilities/data/covariatesTime.rds")
 ##### Model parameter estimates 
 params <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),2] %>% as.numeric()
-names(params) <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),1]
+params <- data.frame(params %*% t(tempUC)) %>% t()
+colnames(params) <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),1]
+# names(params) <- readRDS("utilities/data/parameters.rds")[c(1:54, 57),1]
+
 
 ##### Model estimates of country random effects
-cntryREs <- readRDS("utilities/data/cntryRndEff.rds")
-
+cntryREs <- readRDS("utilities/data/cntryRndEff.rds") 
+cntryREs <- data.frame(Country = cntryREs[,1], cntryREs[,2] %*% t(tempUC))
 ##### Available countries
 countries <- sort(unique(covariates$study.country))
 
@@ -89,90 +99,92 @@ calculateCosts <- function(selectedCntry,
     covs[, "scaled.oop.che"] <- (oopInput - 39.6697) / 16.0616
     covs[, "scaled.uhc"]     <- (uhcInput - 61.46697) / 15.68885
     
-    cntryRE <- cntryREs %>% filter(Country == selectedCntry) %>% select(Value) %>% 
+    cntryRE2 <- cntryREs %>% filter(Country == selectedCntry) %>% select(!Country) %>% 
         unlist() %>% as.numeric()
     
     scaledYear <- (yearInput - 2017.689) / 3.153565
+    
+    estimates <- data.frame(dme.prediag = 
+                                exp(params[,"beta_dme_prediag"] + cntryRE2 + 
+                                    params[,"beta_med_income_dme_prediag"] * covs$scaled.med.inc +
+                                    params[,"beta_oop_che_dme_prediag"] * covs$scaled.oop.che +
+                                    params[,"beta_uhc_dme_prediag"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_dme_prediag"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]),
+                            ### DNME PREDIAGNOSIS 
+                            dnme.prediag =   
+                                exp(params[,"beta_dnme_prediag"] + cntryRE2 + 
+                                        params[,"beta_med_income_dnme_prediag"] * covs$scaled.med.inc +
+                                        params[,"beta_oop_che_dnme_prediag"] * covs$scaled.oop.che +
+                                        params[,"beta_uhc_dnme_prediag"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_dnme_prediag"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]), 
+                            ie.prediag =   
+                            ### INDIRECT PREDIAGNOSIS 
+                            exp(params[,"beta_ie_prediag"] + cntryRE2 + 
+                                    params[,"beta_med_income_ie_prediag"] * covs$scaled.med.inc +
+                                    params[,"beta_oop_che_ie_prediag"] * covs$scaled.oop.che +
+                                    params[,"beta_uhc_ie_prediag"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_ie_prediag"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]), 
+    
+                            dme.intsvtx = 
+                                exp(params[,"beta_dme_intsvtx"] + cntryRE2 + 
+                                        params[,"beta_med_income_dme_intsvtx"] * covs$scaled.med.inc +
+                                        params[,"beta_oop_che_dme_intsvtx"] * covs$scaled.oop.che +
+                                        params[,"beta_uhc_dme_intsvtx"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_dme_intsvtx"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]),
+                            ### DNME INTENSIVE TX 
+                            dnme.intsvtx =   
+                                exp(params[,"beta_dnme_intsvtx"] + cntryRE2 + 
+                                        params[,"beta_med_income_dnme_intsvtx"] * covs$scaled.med.inc +
+                                        params[,"beta_oop_che_dnme_intsvtx"] * covs$scaled.oop.che +
+                                        params[,"beta_uhc_dnme_intsvtx"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_dnme_intsvtx"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]), 
+                            ### INDIRECT INTENSIVE TX 
+                            ie.intsvtx =   
+                                exp(params[,"beta_ie_intsvtx"] + cntryRE2 + 
+                                        params[,"beta_med_income_ie_intsvtx"] * covs$scaled.med.inc +
+                                        params[,"beta_oop_che_ie_intsvtx"] * covs$scaled.oop.che +
+                                        params[,"beta_uhc_ie_intsvtx"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_ie_intsvtx"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]),
+                            
+                            
+                            dme.contntx = 
+                                exp(params[,"beta_dme_contntx"] + cntryRE2 + 
+                                        params[,"beta_med_income_dme_contntx"] * covs$scaled.med.inc +
+                                        params[,"beta_oop_che_dme_contntx"] * covs$scaled.oop.che +
+                                        params[,"beta_uhc_dme_contntx"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_dme_contntx"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]),
+                            ### DNME contntxNOSIS 
+                            dnme.contntx =   
+                                exp(params[,"beta_dnme_contntx"] + cntryRE2 + 
+                                        params[,"beta_med_income_dnme_contntx"] * covs$scaled.med.inc +
+                                        params[,"beta_oop_che_dnme_contntx"] * covs$scaled.oop.che +
+                                        params[,"beta_uhc_dnme_contntx"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_dnme_contntx"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]), 
+                            ### INDIRECT CONTINUATION TX 
+                            ie.contntx =   
+                                exp(params[,"beta_ie_contntx"] + cntryRE2 + 
+                                        params[,"beta_med_income_ie_contntx"] * covs$scaled.med.inc +
+                                        params[,"beta_oop_che_ie_contntx"] * covs$scaled.oop.che +
+                                        params[,"beta_uhc_ie_contntx"] * covs$scaled.uhc) *
+                                exp(params[,"beta_year_ie_contntx"] * scaledYear) *       
+                                (1-params[,"prob_cost_zero"]))
     
     allCosts <- data.frame(Category = c(rep("Pre-treatment", 3), 
                                         rep("Intensive\ntreatment", 3),
                                         rep("Continuation\ntreatment", 3)), 
                            Phase =   rep(c("Direct\nmedical", "Direct\nnon-medical", "Indirect"), 3), 
-                           Estimate = c(
-                               exp(params["beta_dme_prediag"] + cntryRE + 
-                                       params["beta_med_income_dme_prediag"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_dme_prediag"] * covs$scaled.oop.che +
-                                       params["beta_uhc_dme_prediag"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_dme_prediag"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### DNME PREDIAGNOSIS 
-                               exp(params["beta_dnme_prediag"] + cntryRE + 
-                                       params["beta_med_income_dnme_prediag"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_dnme_prediag"] * covs$scaled.oop.che +
-                                       params["beta_uhc_dnme_prediag"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_dnme_prediag"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### INDIRECT PREDIAGNOSIS 
-                               exp(params["beta_ie_prediag"] + cntryRE + 
-                                       params["beta_med_income_ie_prediag"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_ie_prediag"] * covs$scaled.oop.che +
-                                       params["beta_uhc_ie_prediag"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_ie_prediag"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### DME NTENSIVE TREATMENT  
-                               exp(params["beta_dme_intsvtx"] + cntryRE + 
-                                       params["beta_med_income_dme_intsvtx"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_dme_intsvtx"] * covs$scaled.oop.che +
-                                       params["beta_uhc_dme_intsvtx"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_dme_intsvtx"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### DNME NTENSIVE TREATMENT  
-                               exp(params["beta_dnme_intsvtx"] + cntryRE + 
-                                       params["beta_med_income_dnme_intsvtx"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_dnme_intsvtx"] * covs$scaled.oop.che +
-                                       params["beta_uhc_dnme_intsvtx"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_dnme_intsvtx"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### INDIRECT INTENSIVE TREATMENT 
-                               exp(params["beta_ie_intsvtx"] + cntryRE + 
-                                       params["beta_med_income_ie_intsvtx"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_ie_intsvtx"] * covs$scaled.oop.che +
-                                       params["beta_uhc_ie_intsvtx"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_ie_intsvtx"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### DME CONTINUATION TREATMENT  
-                               exp(params["beta_dme_contntx"] + cntryRE + 
-                                       params["beta_med_income_dme_contntx"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_dme_contntx"] * covs$scaled.oop.che +
-                                       params["beta_uhc_dme_contntx"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_dme_contntx"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### DNME CONTINUATION TREATMENT  
-                               exp(params["beta_dnme_contntx"] + cntryRE + 
-                                       params["beta_med_income_dnme_contntx"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_dnme_contntx"] * covs$scaled.oop.che +
-                                       params["beta_uhc_dnme_contntx"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_dnme_contntx"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]), 
-                               
-                               ### INDIRECT CONTINUATION TREATMENT 
-                               exp(params["beta_ie_contntx"] + cntryRE + 
-                                       params["beta_med_income_ie_contntx"] * covs$scaled.med.inc +
-                                       params["beta_oop_che_ie_contntx"] * covs$scaled.oop.che +
-                                       params["beta_uhc_ie_contntx"] * covs$scaled.uhc) *
-                                   exp(params["beta_year_ie_contntx"] * scaledYear) *       
-                                   (1-params["prob_cost_zero"]) 
-                           ))
-    
-    ### Round to nearest dollar 
-    allCosts$Estimate <- round(allCosts$Estimate)
+                           Estimate = round(apply(estimates, MARGIN = 2, mean)),
+                           LB = round(apply(estimates, MARGIN = 2, quantile, probs=0.025)),
+                           UB = round(apply(estimates, MARGIN = 2, quantile, probs=0.975))) %>%
+                 mutate(`95% uncertainty interval` = paste0("(", LB, ", ", UB, ")"))
     
     return(allCosts)
 }
@@ -617,7 +629,8 @@ server <- function(input, output, session) {
     
     #### Present country specific costs as table
     output$costTable <- renderTable({
-        reactiveVar$calcCosts
+        reactiveVar$calcCosts %>% 
+            select(! c(LB,UB))
     }, digits = 0)
     
     #### Plot country specific covariates as bar plot
