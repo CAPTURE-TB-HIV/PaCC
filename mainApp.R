@@ -337,6 +337,15 @@ ui <- page_navbar(
                           choices = 2009:2024
                       ),
                       
+                      # checkboxGroupInput( 
+                      #     "drOpt", 
+                      #     "Resistance status", 
+                      #     c( 
+                      #         "Drug-sensitive TB" = "dstb", 
+                      #         "RR/MDR TB" = "drtb" 
+                      #     ) 
+                      # ), 
+                      
                       hr(),
                       tags$div(tags$p(HTML("<b>
                         Default covariate values for selected country and year: </b>"))),
