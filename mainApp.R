@@ -314,7 +314,6 @@ ui <- page_navbar(
     
     id = "inTabset",
     tags$head(tags$style(HTML("a {color: black}"))),
-    
     nav_panel(title = "About", 
               
               headerPanel(
@@ -325,12 +324,12 @@ ui <- page_navbar(
               
               setBackgroundColor("#BE91BE"),
               
-              p("The TB Patient Cost Calculator (TB PaCC)  estimates country-level TB patient costs for 129 low- and middle income countries. We chose the name TB PaCC to represent the significant planning and resources required among persons undergoing TB treatment. Furthermore, the economic burden of TB treatment can place financial strain on households, like carrying a heavy pack throughout a journey."),
-              p("The underlying model is informed from data collected from 104 studies of TB patient costs, representing more than 55,000 persons treated for TB. The model uses routinely reported country- and year- matched data to estimates the cost of TB, stratified by three cost Types (direct medical, direct non-medical, and indirect) and across the phases of the TB care cascade (pre-treatment, intensive treatment, and continuation treatment). All estimates represent TB patient costs in 2024 in 2025 INTD."),
-              p("Please note: TB patient cost data varies substantially across settings and study design. As such, our estimates should be used as a guide point for analyses."), 
+              p("The TB Patient Cost Calculator (TB PaCC)  estimates country-level TB patient costs for 129 low- and middle income countries. We chose the name TB PaCC to represent the significant planning and resources required among persons undergoing TB treatment. Furthermore, the economic burden of TB treatment can place financial strain on households, like carrying a heavy pack throughout a journey.", style="color: #000000;margin-left:15%; margin-right:15%"),
+              p("The underlying model is informed from data collected from 104 studies of TB patient costs, representing more than 55,000 persons treated for TB. The model uses routinely reported country- and year- matched data to estimates the cost of TB, stratified by three cost Types (direct medical, direct non-medical, and indirect) and across the phases of the TB care cascade (pre-treatment, intensive treatment, and continuation treatment). All estimates represent TB patient costs in 2024 in 2025 INTD.", style="color: #000000;margin-left:15%; margin-right:15%"),
+              p("Please note: TB patient cost data varies substantially across settings and study design. As such, our estimates should be used as a guide point for analyses.", style="color: #000000;margin-left:15%; margin-right:15%"),
               
               actionButton('jumpToPaCC', 'Get started!', icon("paper-plane"),
-                           style="color: #000000; background-color: #FFFFFF")),
+                           style="color: #000000; background-color: #FFFFFF; margin-left:30%; margin-right:30%")),
     
     nav_panel(title = "PaCC" , 
               setBackgroundColor("#BE91BE"),
