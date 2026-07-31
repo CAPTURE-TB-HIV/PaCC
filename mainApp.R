@@ -181,10 +181,25 @@ calculateCosts <- function(selectedCntry,
                                 exp(params[,"mult_year_ie_contntx"] * scaledYear) *       
                                 (1-params[,"prob_cost_zero"]))
     
+    estimates$Total <- rowSums(estimates)
+    
     allCosts <- data.frame(Category = c(rep("Pre-treatment", 3), 
                                         rep("Intensive\ntreatment", 3),
-                                        rep("Continuation\ntreatment", 3)), 
-                           Phase =   rep(c("Direct\nmedical", "Direct\nnon-medical", "Indirect"), 3), 
+                                        rep("Continuation\ntreatment", 3), 
+                                        ""), 
+                           Phase =   c(rep(c("Direct\nmedical", "Direct\nnon-medical", "Indirect"), 3), ""), 
+                           Description = c("Pre-treatment\ndirect medical", 
+                                    "Pre-treatment\ndirect non-medical",
+                                    "Pre-treatment\nindirect",
+                                    
+                                    "Intensive treatment\ndirect medical", 
+                                    "Intensive treatment\ndirect non-medical",
+                                    "Intensive treatment\nindirect", 
+                                    
+                                    "Continuation treatment\ndirect medical", 
+                                    "Continuation treatment\ndirect non-medical",
+                                    "Continuation treatment\nindirect", 
+                                    "Total"),  
                            Estimate = round(apply(estimates, MARGIN = 2, mean)),
                            LB = round(apply(estimates, MARGIN = 2, quantile, probs=0.025)),
                            UB = round(apply(estimates, MARGIN = 2, quantile, probs=0.975))) %>%
@@ -202,6 +217,7 @@ plot_stackP_costs <- function(selectedCntry,
                               costs_df
 ){
     ggplot(costs_df %>% 
+               filter(Description != "Total") %>%
                dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
                                                                "Direct\nnon-medical", 
                                                                "Direct\nmedical"
@@ -210,7 +226,7 @@ plot_stackP_costs <- function(selectedCntry,
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by cost category")) + 
         coord_flip() +
         theme_minimal(base_size = 18) + 
-        expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
+        expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
         scale_fill_manual(values = c("#60697C", "#94AEE9","#B5C7EA"), 
                           guide = guide_legend(reverse = TRUE)) + 
         xlab("") + ylab("Costs (2025 INTD)") +
@@ -223,6 +239,7 @@ plot_stackC_costs <- function(selectedCntry,
                               costs_df
 ){
     ggplot(costs_df %>% 
+               filter(Description != "Total") %>%
                dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
                                                                "Direct\nnon-medical", 
                                                                "Direct\nmedical"
@@ -230,7 +247,7 @@ plot_stackC_costs <- function(selectedCntry,
         geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by treatment phase")) + 
         coord_flip() + theme_minimal(base_size = 18) + 
-        expand_limits(y=c(0,max(costs_df$Estimate) * 1.25)) +
+        expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
         scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
                           guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
         xlab("") + ylab("Costs (2025 INTD)")+
@@ -646,7 +663,7 @@ server <- function(input, output, session) {
     #### Present country specific costs as table
     output$costTable <- renderTable({
         reactiveVar$calcCosts %>% 
-            select(! c(LB,UB))
+            select(! c(LB,UB,Phase,Category))
     }, digits = 0)
     
     #### Plot country specific covariates as bar plot
