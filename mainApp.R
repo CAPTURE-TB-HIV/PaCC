@@ -248,7 +248,8 @@ plot_stackC_costs <- function(selectedCntry,
                ), ordered=TRUE))) + 
         geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
         ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by treatment phase")) + 
-        coord_flip() + theme_minimal(base_size = 18) + 
+        coord_flip() +
+        theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
         scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
                           guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
@@ -458,6 +459,8 @@ ui <- page_navbar(
                           title = "",
                           ##### Plot of costs #####
                           nav_panel("Cost figures", 
+                                    # splitLayout(cellWidths = c("50%", "50%"), plotOutput("costCstack", height="600px"), plotOutput("costPstack", height="600px")),
+                                    
                                     plotOutput(outputId = "costCstack", height = "490px"),
                                     plotOutput(outputId = "costPstack", height = "490px"),
                                     plotOutput(outputId = "costCompPlot", height = "490px"),
