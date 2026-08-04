@@ -26,6 +26,8 @@ post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 ##############################################################################|
 ##### External covariate data 
 covariates <- readRDS("utilities/data/covariatesTime.rds")
+##### Comparison data 
+comp_df <- readRDS("utilities/data/compData.rds")
 ##### Model parameter estimates 
 params <- readRDS("utilities/data/parameters.rds")
 params$prob_cost_zero <- 0
@@ -255,6 +257,39 @@ plot_stackC_costs <- function(selectedCntry,
               plot.title = element_text(size = 18), axis.text = element_text(size = 16))
 }
 
+plot_comp_costs <- function(selectedCntry,
+                            costs_df
+){
+    region <- covariates %>% ungroup() %>% 
+              filter(study.country == selectedCntry) %>% 
+              select(who.region) %>% unique() %>% unlist()
+    
+    summaryCosts <- comp_df %>% 
+                    filter(geography %in% c("LMICs", region)) %>% 
+                    rename(Estimate = est) %>% 
+                    mutate(Description = ifelse(geography == "LMICs", 
+                                                "All LMICs\naverage", 
+                                                "Regional\naverage")) %>% 
+                   select(Description, Estimate) %>% 
+                    rbind(costs_df %>% filter(Description == "Total") %>%
+                              select(Description, Estimate) %>% 
+                              mutate(Description = paste(selectedCntry))) %>% 
+                    mutate(color = ifelse(Description == paste(selectedCntry),
+                                          "dark", "light"), 
+                           Description = factor(Description, levels = c("All LMICs\naverage", "Regional\naverage", 
+                                                                        paste(selectedCntry))))
+    ggplot(summaryCosts) + 
+        geom_col(aes(x=Description, y=Estimate, fill=color), color="black") + 
+        ggtitle(paste("Comparison of household cost of TB in", selectedCntry, "with regional and all LMIC average")) + 
+        coord_flip() + theme_minimal(base_size = 18) + 
+        expand_limits(y=c(0,max(summaryCosts$Estimate[-10]) * 1.25)) +
+        scale_fill_manual(values = c("#A567A5", "#D7BBD7")) + # "#8CB88E",
+        xlab("") + ylab("Costs (2025 INTD)")+
+        theme(legend.position = "none", 
+              plot.title = element_text(size = 18), axis.text = element_text(size = 16))  +
+        geom_text(aes(x=Description, y=Estimate, label=round(Estimate)), hjust = -.5, fontface="bold")
+}
+
 
 plot_costs <- function(selectedCntry,
                        costs_df
@@ -425,6 +460,8 @@ ui <- page_navbar(
                           nav_panel("Cost figures", 
                                     plotOutput(outputId = "costCstack", height = "490px"),
                                     plotOutput(outputId = "costPstack", height = "490px"),
+                                    plotOutput(outputId = "costCompPlot", height = "490px"),
+                                    
                                     
                                     downloadButton(
                                         "downloadFigure",
@@ -517,7 +554,8 @@ server <- function(input, output, session) {
     reactiveVar <- reactiveValues(cdrReact = NULL, oopReact = NULL, 
                                   medIncReact = NULL, yearReact = NULL, 
                                   calcCosts = NULL, costPlot = NULL, 
-                                  costPlotStckP = NULL, costPlotStckC = NULL)
+                                  costPlotStckP = NULL, costPlotStckC = NULL, 
+                                  costCompPlot = NULL)
     
     #### Observe the country selected 
     observeEvent(input$country, {
@@ -652,6 +690,13 @@ server <- function(input, output, session) {
         reactiveVar$costPlotStckC
     })
     
+    output$costCompPlot <- renderPlot({
+        reactiveVar$costCompPlot <- plot_comp_costs(input$country, 
+                                                       reactiveVar$calcCosts
+        )
+        reactiveVar$costCompPlot
+    })
+    
     # output$costbar <- renderPlot({
     #     reactiveVar$costPlot <- plot_costs(input$country, 
     #                            reactiveVar$calcCosts
@@ -684,7 +729,8 @@ server <- function(input, output, session) {
         content = function(file) {
             # Write the dataset to the `file` that will be downloaded
             pList <- list(reactiveVar$costPlotStckP, 
-                          reactiveVar$costPlotStckC)
+                          reactiveVar$costPlotStckC, 
+                          reactiveVar$costCompPlot)
             
             pdf(file = file, onefile = TRUE, width=11, height=8.5)
             for(i in 1:length(pList)){
