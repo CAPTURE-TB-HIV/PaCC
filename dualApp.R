@@ -8,14 +8,6 @@ library(stringr)
 library(ggplot2)
 library(bslib)
 
-
-################# REMOVE THIS WHEN UNCERTAINTY VALUES ADDED 
-
-tempUC <- rnorm(1000)
-tmpSamp <- sample(1:10000, 1000, replace = FALSE)
-
-################# REMOVE THIS WHEN UNCERTAINTY VALUES ADDED
-
 #### Repository URL 
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 
@@ -26,22 +18,29 @@ post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
 ##### user. 
 ##############################################################################|
 ##### External covariate data 
-covariates <- readRDS("utilities/data/covariatesTime.rds")
+tb_covariates <- readRDS("utilities/data/TB/covariatesTime2.rds")
+hiv_covariates <- readRDS("utilities/data/HIV/covariatesTime.rds")
+
 ##### Comparison data 
-comp_df <- readRDS("utilities/data/compData.rds")
-hiv_comp_df <-tb_comp_df
-# hiv_comp_df[,2:4] <- hiv_comp_df[,2:4]*.5 
+tb_comp_df <- readRDS("utilities/data/TB/compData.rds")
+hiv_comp_df <- readRDS("utilities/data/HIV/compData.rds")
+
 ##### Model parameter estimates 
-params <- readRDS("utilities/data/parameters.rds")
-params$prob_cost_zero <- 0
+tb_params <- readRDS("utilities/data/TB/parameters.rds")
+tb_params$prob_cost_zero <- 0
+
+hiv_params <- readRDS("utilities/data/HIV/parameters.rds")
 
 ##### Scaling factors (mean and SD of model data) 
-scalars <- readRDS("utilities/data/scalars.rds")
+tb_scalars <- readRDS("utilities/data/TB/scalars.rds")
+hiv_scalars <- readRDS("utilities/data/HIV/scalars.rds")
 
 ##### Model estimates of country random effects
-cntryREs <- readRDS("utilities/data/cntryRndEff.rds") 
+tb_cntryREs <- readRDS("utilities/data/TB/cntryRndEff.rds") 
+hiv_cntryREs <- readRDS("utilities/data/HIV/cntryRndEff.rds") 
+
 ##### Available countries
-countries <- sort(unique(covariates$study.country))
+countries <- sort(unique(tb_covariates$study.country))
 
 ##### Relevant studies 
 studies <- readRDS("utilities/data/tbPatientCostStudies.rds")
@@ -52,139 +51,149 @@ studies <- readRDS("utilities/data/tbPatientCostStudies.rds")
 ##############################################################################|
 
 lookup_inputs <- function(selectedCntry, 
-                          selectedYear = 2024){
-    covariates_filt <- covariates %>% filter(study.country == selectedCntry, 
-                                             study.end.year == selectedYear) %>% 
-        # mutate(scale.median.income = median.income.hh /100,
-        #        scale.median.income.trunc = median.income.hh.trunc /100) %>% 
-        mutate(#"Median household\nannual income\n(in 100s of 2025 INTD)" = scale.median.income.trunc, 
-            "Median household\nannual income\n(2025 INTD)" = median.income.hh.trunc, 
-            # "Universal healthcare\ncoverage index" = uhc.index.trunc, 
-            "TB case\ndetection rate" = cdr.trunc, 
-            
-            "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che.trunc)
+                          selectedYear = 2024, 
+                          infection = "HIV"){
     
+    covariates_filt <- switch(infection, 
+                        "TB" = tb_covariates %>% filter(study.country == selectedCntry, 
+                                                         study.end.year == selectedYear) %>% 
+                            # mutate(scale.median.income = median.income.hh /100,
+                            #        scale.median.income.trunc = median.income.hh.trunc /100) %>% 
+                            mutate(#"Median household\nannual income\n(in 100s of 2025 INTD)" = scale.median.income.trunc, 
+                                "Median household\nannual income\n(2025 INTD)" = median.income.hh.trunc, 
+                                # "Universal healthcare\ncoverage index" = uhc.index.trunc, 
+                                "TB case\ndetection rate" = cdr.trunc, 
+                                
+                                "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che.trunc)
+                        , 
+                        "HIV" =  hiv_covariates %>% filter(study.country == selectedCntry, 
+                                                          study.end.year == selectedYear) %>% 
+                            mutate("Median household\nannual income\n(2025 INTD)" = median.income, 
+                                   "Universal healthcare\ncoverage index" = uhc.index,
+                                   "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che)
+    )
+
     return(covariates_filt)
 }
 
-plot_inputs <- function(selectedCntry){
-    
-    covariates_filt <- lookup_inputs(selectedCntry)
-    
-    ggplot(data = covariates_filt %>% 
-               pivot_longer(cols= c(
-                   `Median individual\nannual income\n(in 100s of 2025 INTD)`, 
-                   `Universal healthcare\ncoverage index`,
-                   `Out-of-pocket percentage\nof current health\nexpenditures`),names_to = "Covariate", values_to = "Value")) + 
-        geom_col(aes(x=Covariate, y=Value), fill = "#A8DCAB", color="black") + theme_minimal(base_size = 14) + 
-        ggtitle(paste("Values of covariates used to predict patient costs in", selectedCntry)) + 
-        coord_flip() +
-        expand_limits(y=c(0,120)) + xlab("") + 
-        geom_text(aes(x=Covariate, y=Value, label=round(Value)), hjust = -.75)
-    
-}
+# plot_inputs <- function(selectedCntry){
+#     
+#     tb_covariates_filt <- lookup_inputs(selectedCntry)
+#     
+#     ggplot(data = tb_covariates_filt %>% 
+#                pivot_longer(cols= c(
+#                    `Median individual\nannual income\n(in 100s of 2025 INTD)`, 
+#                    `Universal healthcare\ncoverage index`,
+#                    `Out-of-pocket percentage\nof current health\nexpenditures`),names_to = "Covariate", values_to = "Value")) + 
+#         geom_col(aes(x=Covariate, y=Value), fill = "#A8DCAB", color="black") + theme_minimal(base_size = 14) + 
+#         ggtitle(paste("Values of tb_covariates used to predict patient costs in", selectedCntry)) + 
+#         coord_flip() +
+#         expand_limits(y=c(0,120)) + xlab("") + 
+#         geom_text(aes(x=Covariate, y=Value, label=round(Value)), hjust = -.75)
+#     
+# }
 
 
 ##############################################################################|
-##### Function to calculate costs for selected country and return dataframe  ##
+##### Function to calculate TB costs for selected country & return dataframe ##
 ##############################################################################|
 
-calculateCosts <- function(selectedCntry, 
+tb_calculateCosts <- function(selectedCntry, 
                            yearInput = 2024,
                            medIncInput, 
                            oopInput,
                            cdrInput) {
     
-    covs <- covariates %>% 
+    covs <- tb_covariates %>% 
         filter(study.country == selectedCntry,
                study.end.year == yearInput)# %>% 
-    # mutate(scaled.med.inc = (log.median.income.hh.trunc - scalars["mean", "log.median.income.hh"]) / scalars["sd", "log.median.income.hh"], 
-    #        scaled.oop.che = (oop.perc.che.trunc - scalars["mean", "oop.perc.che"]) / scalars["sd", "oop.perc.che"], 
-    #        scaled.cdr =     (cdr.trunc - scalars["mean", "cdr.rate"]) / scalars["sd", "cdr.rate"])
+    # mutate(scaled.med.inc = (log.median.income.hh.trunc - tb_scalars["mean", "log.median.income.hh"]) / tb_scalars["sd", "log.median.income.hh"], 
+    #        scaled.oop.che = (oop.perc.che.trunc - tb_scalars["mean", "oop.perc.che"]) / tb_scalars["sd", "oop.perc.che"], 
+    #        scaled.cdr =     (cdr.trunc - tb_scalars["mean", "cdr.rate"]) / tb_scalars["sd", "cdr.rate"])
     
-    covs[, "scaled.med.inc"] <- (log(medIncInput) - scalars["mean", "log.median.income.hh"]) / scalars["sd", "log.median.income.hh"] 
-    covs[, "scaled.oop.che"] <- (oopInput - scalars["mean", "oop.perc.che"]) / scalars["sd", "oop.perc.che"]
-    covs[, "scaled.cdr"]     <- (cdrInput - scalars["mean", "cdr.rate"]) / scalars["sd", "cdr.rate"]
+    covs[, "scaled.med.inc"] <- (log(medIncInput) - tb_scalars["mean", "log.median.income.hh"]) / tb_scalars["sd", "log.median.income.hh"] 
+    covs[, "scaled.oop.che"] <- (oopInput - tb_scalars["mean", "oop.perc.che"]) / tb_scalars["sd", "oop.perc.che"]
+    covs[, "scaled.cdr"]     <- (cdrInput - tb_scalars["mean", "cdr.rate"]) / tb_scalars["sd", "cdr.rate"]
     
     # covs[, "scaled.uhc"]     <- (uhcInput - 61.46697) / 15.68885
     
-    cntryRE2 <- cntryREs %>% filter(Country == selectedCntry) %>% select(!Country) %>% 
+    cntryRE2 <- tb_cntryREs %>% filter(Country == selectedCntry) %>% select(!Country) %>% 
         unlist() %>% as.numeric()
     
-    scaledYear <- (yearInput - scalars["mean", "study.end.year"]) / scalars["sd", "study.end.year"]
+    scaledYear <- (yearInput - tb_scalars["mean", "study.end.year"]) / tb_scalars["sd", "study.end.year"]
     
     estimates <- data.frame(dme.prediag = 
-                                exp(params[,"beta_dme_prediag"] + cntryRE2 + 
-                                        params[,"mult_med_income_dme_prediag"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_dme_prediag"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_dme_prediag"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_dme_prediag"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]),
+                                exp(tb_params[,"beta_dme_prediag"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_dme_prediag"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_dme_prediag"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_dme_prediag"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_dme_prediag"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]),
                             ### DNME PREDIAGNOSIS 
                             dnme.prediag =   
-                                exp(params[,"beta_dnme_prediag"] + cntryRE2 + 
-                                        params[,"mult_med_income_dnme_prediag"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_dnme_prediag"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_dnme_prediag"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_dnme_prediag"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]), 
+                                exp(tb_params[,"beta_dnme_prediag"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_dnme_prediag"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_dnme_prediag"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_dnme_prediag"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_dnme_prediag"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]), 
                             ie.prediag =   
                                 ### INDIRECT PREDIAGNOSIS 
-                                exp(params[,"beta_ie_prediag"] + cntryRE2 + 
-                                        params[,"mult_med_income_ie_prediag"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_ie_prediag"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_ie_prediag"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_ie_prediag"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]), 
+                                exp(tb_params[,"beta_ie_prediag"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_ie_prediag"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_ie_prediag"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_ie_prediag"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_ie_prediag"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]), 
                             
                             dme.intsvtx = 
-                                exp(params[,"beta_dme_intsvtx"] + cntryRE2 + 
-                                        params[,"mult_med_income_dme_intsvtx"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_dme_intsvtx"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_dme_intsvtx"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_dme_intsvtx"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]),
+                                exp(tb_params[,"beta_dme_intsvtx"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_dme_intsvtx"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_dme_intsvtx"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_dme_intsvtx"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_dme_intsvtx"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]),
                             ### DNME INTENSIVE TX 
                             dnme.intsvtx =   
-                                exp(params[,"beta_dnme_intsvtx"] + cntryRE2 + 
-                                        params[,"mult_med_income_dnme_intsvtx"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_dnme_intsvtx"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_dnme_intsvtx"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_dnme_intsvtx"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]), 
+                                exp(tb_params[,"beta_dnme_intsvtx"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_dnme_intsvtx"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_dnme_intsvtx"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_dnme_intsvtx"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_dnme_intsvtx"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]), 
                             ### INDIRECT INTENSIVE TX 
                             ie.intsvtx =   
-                                exp(params[,"beta_ie_intsvtx"] + cntryRE2 + 
-                                        params[,"mult_med_income_ie_intsvtx"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_ie_intsvtx"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_ie_intsvtx"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_ie_intsvtx"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]),
+                                exp(tb_params[,"beta_ie_intsvtx"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_ie_intsvtx"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_ie_intsvtx"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_ie_intsvtx"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_ie_intsvtx"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]),
                             
                             
                             dme.contntx = 
-                                exp(params[,"beta_dme_contntx"] + cntryRE2 + 
-                                        params[,"mult_med_income_dme_contntx"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_dme_contntx"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_dme_contntx"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_dme_contntx"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]),
+                                exp(tb_params[,"beta_dme_contntx"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_dme_contntx"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_dme_contntx"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_dme_contntx"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_dme_contntx"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]),
                             ### DNME contntxNOSIS 
                             dnme.contntx =   
-                                exp(params[,"beta_dnme_contntx"] + cntryRE2 + 
-                                        params[,"mult_med_income_dnme_contntx"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_dnme_contntx"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_dnme_contntx"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_dnme_contntx"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]), 
+                                exp(tb_params[,"beta_dnme_contntx"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_dnme_contntx"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_dnme_contntx"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_dnme_contntx"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_dnme_contntx"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]), 
                             ### INDIRECT CONTINUATION TX 
                             ie.contntx =   
-                                exp(params[,"beta_ie_contntx"] + cntryRE2 + 
-                                        params[,"mult_med_income_ie_contntx"] * covs$scaled.med.inc +
-                                        params[,"mult_oop_perc_che_ie_contntx"] * covs$scaled.oop.che +
-                                        params[,"mult_cdr_ie_contntx"] * covs$scaled.cdr) *
-                                exp(params[,"mult_year_ie_contntx"] * scaledYear) *       
-                                (1-params[,"prob_cost_zero"]))
+                                exp(tb_params[,"beta_ie_contntx"] + cntryRE2 + 
+                                        tb_params[,"mult_med_income_ie_contntx"] * covs$scaled.med.inc +
+                                        tb_params[,"mult_oop_perc_che_ie_contntx"] * covs$scaled.oop.che +
+                                        tb_params[,"mult_cdr_ie_contntx"] * covs$scaled.cdr) *
+                                exp(tb_params[,"mult_year_ie_contntx"] * scaledYear) *       
+                                (1-tb_params[,"prob_cost_zero"]))
     
     estimates$Total <- rowSums(estimates)
     
@@ -213,14 +222,86 @@ calculateCosts <- function(selectedCntry,
     return(allCosts)
 }
 
+##############################################################################|
+##### Function to calculate TB costs for selected country & return dataframe ##
+##############################################################################|
+
+hiv_calculateCosts <- function(selectedCntry, 
+                              yearInput = 2024,
+                              medIncInput, 
+                              oopInput,
+                              uhcInput) {
+    
+    covs <- hiv_covariates %>% 
+        filter(study.country == selectedCntry,
+               study.end.year == yearInput)
+    
+    covs[, "scaled.med.inc"] <- (log(medIncInput) - hiv_scalars["mean", "log.median.income"]) / hiv_scalars["sd", "log.median.income"] 
+    covs[, "scaled.oop.che"] <- (oopInput - hiv_scalars["mean", "oop.perc.che"]) / hiv_scalars["sd", "oop.perc.che"]
+    covs[, "scaled.uhc"]     <- (uhcInput - hiv_scalars["mean", "uhc.index"]) / hiv_scalars["sd", "uhc.index"]
+    
+    cntryRE2 <- hiv_cntryREs %>% filter(Country == selectedCntry) %>% select(!Country) %>% 
+        unlist() %>% as.numeric()
+    
+    scaledYear <- (yearInput - hiv_scalars["mean", "study.end.year"]) / hiv_scalars["sd", "study.end.year"]
+    
+    estimates <- data.frame(### DME 
+                            dme = 
+                                exp(hiv_params[,"b_dme"] + cntryRE2 + 
+                                    hiv_params[,"b_inc"] * covs$scaled.med.inc +
+                                    hiv_params[,"b_oop"] * covs$scaled.oop.che +
+                                    hiv_params[,"b_uhc"] * covs$scaled.uhc + 
+                                    hiv_params[,"b_yr_dme"] * scaledYear),
+                            ### DNME  
+                            dnme.prediag =   
+                                exp(hiv_params[,"b_dnme"] + cntryRE2 + 
+                                        hiv_params[,"b_inc"] * covs$scaled.med.inc +
+                                        hiv_params[,"b_oop"] * covs$scaled.oop.che +
+                                        hiv_params[,"b_uhc"] * covs$scaled.uhc +
+                                        hiv_params[,"b_yr_dnme"] * scaledYear), 
+                            ie.prediag =   
+                                ### INDIRECT  
+                                exp(hiv_params[,"b_ie"] + cntryRE2 + 
+                                        hiv_params[,"b_inc"] * covs$scaled.med.inc +
+                                        hiv_params[,"b_oop"] * covs$scaled.oop.che +
+                                        hiv_params[,"b_uhc"] * covs$scaled.uhc +
+                                        hiv_params[,"b_yr_ie"] * scaledYear))
+    
+    estimates$Total <- rowSums(estimates)
+    
+    allCosts <- data.frame(Category = rep("ART", 4), 
+                           Phase =   c("Direct\nmedical", "Direct\nnon-medical", "Indirect", ""), 
+                           Description = c("Direct medical", 
+                                           "Direct non-medical",
+                                           "Indirect",
+                                           "Total"),  
+                           Estimate = round(apply(estimates, MARGIN = 2, mean)),
+                           LB = round(apply(estimates, MARGIN = 2, quantile, probs=0.025)),
+                           UB = round(apply(estimates, MARGIN = 2, quantile, probs=0.975))) %>%
+        mutate(`95% uncertainty interval` = paste0("(", LB, ", ", UB, ")"))
+    
+    return(allCosts)
+}
+
 
 ##############################################################################|
 ##### Function to create a bar plot of calculated costs for selected country ##
 ##############################################################################|
 
 plot_stackP_costs <- function(selectedCntry,
-                              costs_df
+                              costs_df, 
+                              infection = "TB"
 ){
+    plotPal <- switch(infection, 
+                  TB = c("#60697C", "#94AEE9","#B5C7EA"), 
+                  HIV = "#B5C7EA")
+    
+    infection <- ifelse(infection == "HIV", 
+                        "ART", "TB")
+    
+    legend.pos <- ifelse(infection == "TB", 
+                         "bottom", 
+                         "none")
     ggplot(costs_df %>% 
                filter(Description != "Total") %>%
                dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
@@ -228,14 +309,14 @@ plot_stackP_costs <- function(selectedCntry,
                                                                "Direct\nmedical"
                ), ordered=TRUE))) + 
         geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black", position = "stack") + 
-        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by cost category")) + 
+        ggtitle(paste("Per-episode household cost of", infection, "in", selectedCntry, "by cost category")) + 
         coord_flip() +
         theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
-        scale_fill_manual(values = c("#60697C", "#94AEE9","#B5C7EA"), 
+        scale_fill_manual(values = plotPal, 
                           guide = guide_legend(reverse = TRUE)) + 
         xlab("") + ylab("Costs (2025 INTD)") +
-        theme(legend.position = "bottom",
+        theme(legend.position = legend.pos,
               plot.title = element_text(size = 18), axis.text = element_text(size = 16)) #+ 
     # geom_text(aes(x=Phase, y=Estimate, label=round(Estimate)), position = position_stack(0.5))
 }
@@ -269,6 +350,12 @@ plot_comp_costs <- function(selectedCntry,
                       "TB" = tb_comp_df, 
                       "HIV" = hiv_comp_df)
     
+    covariates <- switch(infection, 
+                         "TB" = tb_covariates, 
+                         "HIV" = hiv_covariates)
+    
+    infection <- ifelse(infection == "HIV", 
+                        "ART", "TB")
     
     region <- covariates %>% ungroup() %>% 
         filter(study.country == selectedCntry) %>% 
@@ -381,7 +468,7 @@ ui <- page_navbar(
                       offset = 0,
                       HTML('<center> <img src="logoZoom.png" height="500"  />'),
                       
-                      p("The TB PaCC model is informed from data collected from 104 studies of TB patient costs, representing more than 55,000 persons treated for TB. The model uses routinely reported country- and year- matched data to estimates the cost of TB, stratified by three cost types (direct medical, direct non-medical, and indirect) and across the phases of the TB care cascade (pre-treatment, intensive treatment, and continuation treatment). All estimates represent TB patient costs in 2024 in 2025 INTD.", style="color: #000000; font-size: 18px;"),
+                      p("The TB PaCC model is informed from data collected from 104 studies of TB patient costs, representing more than 55,000 persons treated for TB. The model uses routinely reported country- and year- matched data to estimates the cost of TB, stratified by three cost types (direct medical, direct non-medical, and indirect) and across the phases of the TB care cascade (pre-treatment, intensive treatment, and continuation treatment). All estimates represent TB patient costs in constant 2025 International Dollars", style="color: #000000; font-size: 18px;"),
                       p("Please note: TB patient cost data varies substantially across settings and study design. As such, our estimates should be used as a guide point for analyses.", style="color: #000000; font-size: 18px;"),
                       
               actionButton('jumpToTBPaCC', 'Calculate TB costs!', icon("paper-plane"),
@@ -392,7 +479,7 @@ ui <- page_navbar(
                   width = 5,
                   offset = 0,
                   HTML('<center> <img src="HIV_logoZoom.png" height="500"  />'),
-                  p("The HIV PaCC model is informed from data collected from N studies of TB patient costs, representing more than LARGE N persons receiving ART. The model uses routinely reported country- and year- matched data to estimates the cost of HIV, stratified by three cost types (direct medical, direct non-medical, and indirect). All estimates represent HIV patient costs in 2024 in 2025 INTD.", style="color: #000000; font-size: 18px;"),
+                  p("The HIV PaCC model is informed from data collected from 32 studies of HIV public ART costs. The model uses routinely reported country- and year- matched data to estimates the cost of HIV, stratified by three cost types (direct medical, direct non-medical, and indirect). All estimates represent ART patient costs in constant 2025 International Dollars.", style="color: #000000; font-size: 18px;"),
                   
               actionButton('jumpToHIVPaCC', 'Calculate HIV costs!', icon("paper-plane"),
                            style="color: #000000; background-color: #FFFFFF; font-size: 20px; display: inline-block; margin-left:20%; margin-right:20%")
@@ -469,7 +556,7 @@ ui <- page_navbar(
                       ), 
                       
                       tags$div(tags$p(HTML("<br><b>
-                        To calculate costs with custom covariate values, click the 'Customize covariates' button below. 
+                        To calculate costs with custom covariate values, click the 'Customize tb_covariates' button below. 
                         Update the values, then click the 'Calculate costs' button to recalculate costs. </b>"))),
                       
                       actionButton('tb_custCovs', 'Customize covariates',
@@ -512,9 +599,9 @@ ui <- page_navbar(
                                         icon = shiny::icon("download"),
                                         enabled = TRUE
                                     )),
-                          ##### Plot of covariates #####
+                          ##### Plot of tb_covariates #####
                           # nav_panel("Covariate plots", 
-                          #           plotOutput(outputId = "covariates")), 
+                          #           plotOutput(outputId = "tb_covariates")), 
                           
                           nav_panel("Country-specific cost studies", 
                                     tableOutput(outputId = "tb_studyTable")), 
@@ -579,7 +666,7 @@ ui <- page_navbar(
                       ),
                       
                       numericInput( 
-                          "hiv_cdr", 
+                          "hiv_uhc", 
                           "WHO Universal Healthcare Index", 
                           value = NULL, 
                           min = 24, 
@@ -587,7 +674,7 @@ ui <- page_navbar(
                       ), 
                       
                       tags$div(tags$p(HTML("<br><b>
-                        To calculate costs with custom covariate values, click the 'Customize covariates' button below. 
+                        To calculate costs with custom covariate values, click the 'Customize tb_covariates' button below. 
                         Update the values, then click the 'Calculate costs' button to recalculate costs. </b>"))),
                       
                       actionButton('hiv_custCovs', 'Customize covariates',
@@ -608,7 +695,6 @@ ui <- page_navbar(
                           nav_panel("Cost figures", 
                                     # splitLayout(cellWidths = c("50%", "50%"), plotOutput("costCstack", height="600px"), plotOutput("costPstack", height="600px")),
                                     
-                                    plotOutput(outputId = "hiv_costCstack", height = "490px"),
                                     plotOutput(outputId = "hiv_costPstack", height = "490px"),
                                     plotOutput(outputId = "hiv_costCompPlot", height = "490px"),
                                     
@@ -630,9 +716,9 @@ ui <- page_navbar(
                                         icon = shiny::icon("download"),
                                         enabled = TRUE
                                     )),
-                          ##### Plot of covariates #####
+                          ##### Plot of tb_covariates #####
                           # nav_panel("Covariate plots", 
-                          #           plotOutput(outputId = "covariates")), 
+                          #           plotOutput(outputId = "tb_covariates")), 
                           
                           nav_panel("Country-specific cost studies", 
                                     tableOutput(outputId = "hiv_studyTable")), 
@@ -713,7 +799,8 @@ server <- function(input, output, session) {
     observeEvent(input$tb_country, {
         
         covariateDF <- lookup_inputs(selectedCntry = input$tb_country, 
-                                     selectedYear = baseYear)
+                                     selectedYear = baseYear, 
+                                     infection = "TB")
         
         TBreactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.hh.trunc"]))
         TBreactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che.trunc"])
@@ -752,7 +839,7 @@ server <- function(input, output, session) {
         # print(reactiveVar$oopReact)
         # print(reactiveVar$cdrReact)
         
-        TBreactiveVar$calcCosts <- calculateCosts(selectedCntry = input$tb_country,
+        TBreactiveVar$calcCosts <- tb_calculateCosts(selectedCntry = input$tb_country,
                                                 yearInput = TBreactiveVar$yearReact,
                                                 medIncInput = TBreactiveVar$medIncReact,
                                                 oopInput = TBreactiveVar$oopReact,
@@ -763,7 +850,8 @@ server <- function(input, output, session) {
         TBreactiveVar$yearReact <- as.numeric(input$tb_year) 
         
         covariateDF <- lookup_inputs(selectedCntry = input$tb_country, 
-                                     selectedYear = as.numeric(input$tb_year))
+                                     selectedYear = as.numeric(input$tb_year), 
+                                     infection = "TB")
         
         TBreactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.trunc"]))
         TBreactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che.trunc"])
@@ -787,14 +875,14 @@ server <- function(input, output, session) {
         # print(TBreactiveVar$oopReact)
         # print(TBreactiveVar$cdrReact)
         
-        TBreactiveVar$calcCosts <- calculateCosts(selectedCntry = input$tb_country,
+        TBreactiveVar$calcCosts <- tb_calculateCosts(selectedCntry = input$tb_country,
                                                 yearInput = TBreactiveVar$yearReact,
                                                 medIncInput = TBreactiveVar$medIncReact,
                                                 oopInput = TBreactiveVar$oopReact,
                                                 cdrInput = TBreactiveVar$cdrReact)
     })
     
-    ##### If the user clicks the customize covariates button, unlock the covariate boxes 
+    ##### If the user clicks the customize tb_covariates button, unlock the covariate boxes 
     observeEvent(input$tb_custCovs, { 
         
         shinyjs::enable("tb_medInc")
@@ -805,7 +893,7 @@ server <- function(input, output, session) {
         
     })
     
-    ##### Once the covariates are updated and the user clicks calculate costs, 
+    ##### Once the tb_covariates are updated and the user clicks calculate costs, 
     ##### relock the input boxes. 
     
     observeEvent(input$tb_reRun, {
@@ -818,7 +906,7 @@ server <- function(input, output, session) {
         TBreactiveVar$oopReact <- input$tb_oopPerc
         TBreactiveVar$cdrReact <- input$tb_cdr
 
-        TBreactiveVar$calcCosts <- calculateCosts(selectedCntry = input$tb_country,
+        TBreactiveVar$calcCosts <- tb_calculateCosts(selectedCntry = input$tb_country,
                                                 yearInput = TBreactiveVar$yearReact,
                                                 medIncInput = TBreactiveVar$medIncReact,
                                                 oopInput = TBreactiveVar$oopReact,
@@ -830,7 +918,8 @@ server <- function(input, output, session) {
     #### Plot country specific costs as bar plots
     output$tb_costPstack <- renderPlot({
         TBreactiveVar$costPlotStckP <- plot_stackP_costs(input$tb_country,
-                                                       TBreactiveVar$calcCosts
+                                                         TBreactiveVar$calcCosts, 
+                                                         infection = "TB"
         )
         TBreactiveVar$costPlotStckP
     })
@@ -901,31 +990,31 @@ server <- function(input, output, session) {
     observeEvent(input$hiv_country, {
         
         covariateDF <- lookup_inputs(selectedCntry = input$hiv_country, 
-                                     selectedYear = baseYear)
+                                     selectedYear = baseYear, 
+                                     infection = "HIV")
         
-        HIVreactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.hh.trunc"]))
-        HIVreactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che.trunc"])
-        HIVreactiveVar$cdrReact <- as.numeric(covariateDF[,"cdr.trunc"])
-        # reactiveVar$cdrReact <- as.numeric(covariateDF[,"uhc.index"])
+        HIVreactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income"]))
+        HIVreactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che"])
+        HIVreactiveVar$uhcReact <- as.numeric(covariateDF[,"uhc.index"])
         HIVreactiveVar$yearReact <- baseYear
         
         updateNumericInput(session,
                            inputId = "hiv_medInc",
-                           value = round(as.numeric(covariateDF[,"median.income.hh.trunc"])))
+                           value = round(as.numeric(covariateDF[,"median.income"])))
         
         shinyjs::disable("hiv_medInc")
         
         updateNumericInput(session,
                            inputId = "hiv_oopPerc",
-                           value = as.numeric(covariateDF[,"oop.perc.che.trunc"]))
+                           value = as.numeric(covariateDF[,"oop.perc.che"]))
         
         shinyjs::disable("hiv_oopPerc")
         
         updateNumericInput(session,
-                           inputId = "hiv_cdr",
-                           value = as.numeric(covariateDF[,"cdr.trunc"]))
+                           inputId = "hiv_uhc",
+                           value = as.numeric(covariateDF[,"uhc.index"]))
         
-        shinyjs::disable("hiv_cdr")
+        shinyjs::disable("hiv_uhc")
         
         
         updateSelectInput(
@@ -940,77 +1029,78 @@ server <- function(input, output, session) {
         # print(reactiveVar$oopReact)
         # print(reactiveVar$cdrReact)
         
-        HIVreactiveVar$calcCosts <- calculateCosts(selectedCntry = input$hiv_country,
-                                                   yearInput = HIVreactiveVar$yearReact,
-                                                   medIncInput = HIVreactiveVar$medIncReact,
-                                                   oopInput = HIVreactiveVar$oopReact,
-                                                   cdrInput = HIVreactiveVar$cdrReact)
+        HIVreactiveVar$calcCosts <- hiv_calculateCosts(selectedCntry = input$hiv_country,
+                                                       yearInput = HIVreactiveVar$yearReact,
+                                                       medIncInput = HIVreactiveVar$medIncReact,
+                                                       oopInput = HIVreactiveVar$oopReact,
+                                                       uhcInput = HIVreactiveVar$uhcReact)
     })
     
     observeEvent(input$hiv_year, {
         HIVreactiveVar$yearReact <- as.numeric(input$hiv_year) 
         
         covariateDF <- lookup_inputs(selectedCntry = input$hiv_country, 
-                                     selectedYear = as.numeric(input$hiv_year))
+                                     selectedYear = as.numeric(input$hiv_year), 
+                                     infection = "HIV")
         
-        HIVreactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income.trunc"]))
-        HIVreactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che.trunc"])
-        HIVreactiveVar$cdrReact <- as.numeric(covariateDF[,"cdr.trunc"])
+        HIVreactiveVar$medIncReact <- round(as.numeric(covariateDF[,"median.income"]))
+        HIVreactiveVar$oopReact <- as.numeric(covariateDF[,"oop.perc.che"])
+        HIVreactiveVar$uhcReact <- as.numeric(covariateDF[,"uhc.index"])
         
         updateNumericInput(session,
                            inputId = "hiv_medInc",
-                           value = round(as.numeric(covariateDF[,"median.income.trunc"])))
+                           value = round(as.numeric(covariateDF[,"median.income"])))
         
         updateNumericInput(session,
                            inputId = "hiv_oopPerc",
-                           value = as.numeric(covariateDF[,"oop.perc.che.trunc"]))
+                           value = as.numeric(covariateDF[,"oop.perc.che"]))
         
         updateNumericInput(session,
-                           inputId = "hiv_cdr",
-                           value = as.numeric(covariateDF[,"cdr.trunc"]))
+                           inputId = "hiv_uhc",
+                           value = as.numeric(covariateDF[,"uhc.index"]))
         
         # print(input$hiv_country)
         # print(HIVreactiveVar$yearReact)
         # print(HIVreactiveVar$medIncReact)
         # print(HIVreactiveVar$oopReact)
-        # print(HIVreactiveVar$cdrReact)
+        # print(HIVreactiveVar$uhcReact)
         
-        HIVreactiveVar$calcCosts <- calculateCosts(selectedCntry = input$hiv_country,
-                                                   yearInput = HIVreactiveVar$yearReact,
-                                                   medIncInput = HIVreactiveVar$medIncReact,
-                                                   oopInput = HIVreactiveVar$oopReact,
-                                                   cdrInput = HIVreactiveVar$cdrReact)
+        HIVreactiveVar$calcCosts <- hiv_calculateCosts(selectedCntry = input$hiv_country,
+                                                       yearInput = HIVreactiveVar$yearReact,
+                                                       medIncInput = HIVreactiveVar$medIncReact,
+                                                       oopInput = HIVreactiveVar$oopReact,
+                                                       uhcInput = HIVreactiveVar$uhcReact)
     })
     
-    ##### If the user clicks the customize covariates button, unlock the covariate boxes 
+    ##### If the user clicks the customize tb_covariates button, unlock the covariate boxes 
     observeEvent(input$hiv_custCovs, { 
         
         shinyjs::enable("hiv_medInc")
         shinyjs::enable("hiv_oopPerc")
-        shinyjs::enable("hiv_cdr")
+        shinyjs::enable("hiv_uhc")
         
         shinyjs::enable("hiv_reRun")
         
     })
     
-    ##### Once the covariates are updated and the user clicks calculate costs, 
+    ##### Once the tb_covariates are updated and the user clicks calculate costs, 
     ##### relock the input boxes. 
     
     observeEvent(input$hiv_reRun, {
         
         shinyjs::disable("hiv_medInc")
         shinyjs::disable("hiv_oopPerc")
-        shinyjs::disable("hiv_cdr")
+        shinyjs::disable("hiv_uhc")
         
         HIVreactiveVar$medIncReact <- input$hiv_medInc
         HIVreactiveVar$oopReact <- input$hiv_oopPerc
-        HIVreactiveVar$cdrReact <- input$hiv_cdr
+        HIVreactiveVar$uhcReact <- input$hiv_uhc
         
-        HIVreactiveVar$calcCosts <- calculateCosts(selectedCntry = input$hiv_country,
-                                                   yearInput = HIVreactiveVar$yearReact,
-                                                   medIncInput = HIVreactiveVar$medIncReact,
-                                                   oopInput = HIVreactiveVar$oopReact,
-                                                   cdrInput = HIVreactiveVar$cdrReact)
+        HIVreactiveVar$calcCosts <- hiv_calculateCosts(selectedCntry = input$hiv_country,
+                                                       yearInput = HIVreactiveVar$yearReact,
+                                                       medIncInput = HIVreactiveVar$medIncReact,
+                                                       oopInput = HIVreactiveVar$oopReact,
+                                                       uhcInput = HIVreactiveVar$uhcReact)
         
         shinyjs::disable("hiv_reRun")
     })
@@ -1018,7 +1108,8 @@ server <- function(input, output, session) {
     #### Plot country specific costs as bar plots
     output$hiv_costPstack <- renderPlot({
         HIVreactiveVar$costPlotStckP <- plot_stackP_costs(input$hiv_country,
-                                                          HIVreactiveVar$calcCosts
+                                                          HIVreactiveVar$calcCosts,
+                                                          infection = "HIV"
         )
         HIVreactiveVar$costPlotStckP
     })
