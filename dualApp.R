@@ -296,12 +296,14 @@ plot_stackP_costs <- function(selectedCntry,
                   TB = c("#60697C", "#94AEE9","#B5C7EA"), 
                   HIV = "#B5C7EA")
     
+    plot.opts <- switch(infection, 
+                        TB = c("bottom", "Per-episode"), 
+                        HIV = c("none", "Annual"))
+    
     infection <- ifelse(infection == "HIV", 
                         "ART", "TB")
     
-    legend.pos <- ifelse(infection == "TB", 
-                         "bottom", 
-                         "none")
+
     ggplot(costs_df %>% 
                filter(Description != "Total") %>%
                dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
@@ -309,14 +311,14 @@ plot_stackP_costs <- function(selectedCntry,
                                                                "Direct\nmedical"
                ), ordered=TRUE))) + 
         geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black", position = "stack") + 
-        ggtitle(paste("Per-episode household cost of", infection, "in", selectedCntry, "by cost category")) + 
+        ggtitle(paste(plot.opts[2], "shousehold cost of", infection, "in", selectedCntry, "by cost category")) + 
         coord_flip() +
         theme_minimal(base_size = 18) + 
         expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
         scale_fill_manual(values = plotPal, 
                           guide = guide_legend(reverse = TRUE)) + 
         xlab("") + ylab("Costs (2025 INTD)") +
-        theme(legend.position = legend.pos,
+        theme(legend.position = plot.opts[1],
               plot.title = element_text(size = 18), axis.text = element_text(size = 16)) #+ 
     # geom_text(aes(x=Phase, y=Estimate, label=round(Estimate)), position = position_stack(0.5))
 }
