@@ -7,6 +7,7 @@ library(tibble)
 library(stringr)
 library(ggplot2)
 library(bslib)
+webr::install("markdown")
 
 #### Repository URL 
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
@@ -240,28 +241,28 @@ hiv_calculateCosts <- function(selectedCntry,
     covs[, "scaled.oop.che"] <- (oopInput - hiv_scalars["mean", "oop.perc.che"]) / hiv_scalars["sd", "oop.perc.che"]
     covs[, "scaled.uhc"]     <- (uhcInput - hiv_scalars["mean", "uhc.index"]) / hiv_scalars["sd", "uhc.index"]
     
-    cntryRE2 <- hiv_cntryREs %>% filter(Country == selectedCntry) %>% select(!Country) %>% 
+    cntryREHIV <- hiv_cntryREs %>% filter(Country == selectedCntry) %>% select(!Country) %>% 
         unlist() %>% as.numeric()
     
     scaledYear <- (yearInput - hiv_scalars["mean", "study.end.year"]) / hiv_scalars["sd", "study.end.year"]
     
     estimates <- data.frame(### DME 
                             dme = 
-                                exp(hiv_params[,"b_dme"] + cntryRE2 + 
+                                exp(hiv_params[,"b_dme"] + cntryREHIV + 
                                     hiv_params[,"b_inc"] * covs$scaled.med.inc +
                                     hiv_params[,"b_oop"] * covs$scaled.oop.che +
                                     hiv_params[,"b_uhc"] * covs$scaled.uhc + 
                                     hiv_params[,"b_yr_dme"] * scaledYear),
                             ### DNME  
                             dnme.prediag =   
-                                exp(hiv_params[,"b_dnme"] + cntryRE2 + 
+                                exp(hiv_params[,"b_dnme"] + cntryREHIV + 
                                         hiv_params[,"b_inc"] * covs$scaled.med.inc +
                                         hiv_params[,"b_oop"] * covs$scaled.oop.che +
                                         hiv_params[,"b_uhc"] * covs$scaled.uhc +
                                         hiv_params[,"b_yr_dnme"] * scaledYear), 
                             ie.prediag =   
                                 ### INDIRECT  
-                                exp(hiv_params[,"b_ie"] + cntryRE2 + 
+                                exp(hiv_params[,"b_ie"] + cntryREHIV + 
                                         hiv_params[,"b_inc"] * covs$scaled.med.inc +
                                         hiv_params[,"b_oop"] * covs$scaled.oop.che +
                                         hiv_params[,"b_uhc"] * covs$scaled.uhc +
@@ -275,7 +276,7 @@ hiv_calculateCosts <- function(selectedCntry,
                                            "Direct non-medical",
                                            "Indirect",
                                            "Total"),  
-                           Estimate = round(apply(estimates, MARGIN = 2, mean)),
+                           Estimate = round(apply(estimates, MARGIN = 1, mean)),
                            LB = round(apply(estimates, MARGIN = 2, quantile, probs=0.025)),
                            UB = round(apply(estimates, MARGIN = 2, quantile, probs=0.975))) %>%
         mutate(`95% uncertainty interval` = paste0("(", LB, ", ", UB, ")"))
@@ -451,7 +452,8 @@ ui <- page_navbar(
     nav_panel(title = "About", 
               
               headerPanel(
-                  p("TB Patient Cost Calculator (TB PaCC) and HIV Patient Cost Calculator (HIV PaCC)", style="color: #000000; font-size: 36px;"),
+                  # p("TB Patient Cost Calculator (TB PaCC) and HIV Patient Cost Calculator (HIV PaCC)", style="color: #000000; font-size: 36px;"),
+                  p("TB Patient Cost Calculator (TB PaCC)", style="color: #000000; font-size: 36px;"),
                   
                   # HTML('<center> <img src="logoZoom.png" height="500"  /><img src="HIV_logoZoom.png" height="500"  />')
                   
@@ -461,7 +463,9 @@ ui <- page_navbar(
 
               
               fluidRow(
-                  p("The TB Patient Cost Calculator (TB PaCC) and HIV Patient Cost Calculator (HIV PaCC) estimate country-level patient costs for 129 low- and middle income countries. We chose the name PaCC to represent the significant planning and resources required among persons undergoing TB and HIV treatment. Furthermore, the economic burden of TB treatment can place financial strain on households, like carrying a heavy pack throughout a journey.", style="color: #000000; font-size: 24px;"),
+                  # p("The TB Patient Cost Calculator (TB PaCC) and HIV Patient Cost Calculator (HIV PaCC) estimate country-level patient costs for 129 low- and middle income countries. We chose the name PaCC to represent the significant planning and resources required among persons undergoing TB and HIV treatment. Furthermore, the economic burden of TB treatment can place financial strain on households, like carrying a heavy pack throughout a journey.", style="color: #000000; font-size: 24px;"),
+                  p("The TB Patient Cost Calculator (TB PaCC) estimates country-level TB household costs for 129 low- and middle income countries. We chose the name PaCC to represent the significant planning and resources required among persons undergoing TB treatment. Furthermore, the economic burden of TB treatment can place financial strain on households, like carrying a heavy pack throughout a journey.", style="color: #000000; font-size: 24px;"),
+                  
               ),
               fluidRow(
                   # column(width=1.5),
@@ -476,16 +480,16 @@ ui <- page_navbar(
               actionButton('jumpToTBPaCC', 'Calculate TB costs!', icon("paper-plane"),
                            style="color: #000000; background-color: #FFFFFF; font-size: 20px; inline-block; margin-left:20%; margin-right:20%")
               ), 
-              column(width=1),
-              column(
-                  width = 5,
-                  offset = 0,
-                  HTML('<center> <img src="HIV_logoZoom.png" height="500"  />'),
-                  p("The HIV PaCC model is informed from data collected from 32 studies of HIV public ART costs. The model uses routinely reported country- and year- matched data to estimates the cost of HIV, stratified by three cost types (direct medical, direct non-medical, and indirect). All estimates represent ART patient costs in constant 2025 International Dollars.", style="color: #000000; font-size: 18px;"),
-                  
-              actionButton('jumpToHIVPaCC', 'Calculate HIV costs!', icon("paper-plane"),
-                           style="color: #000000; background-color: #FFFFFF; font-size: 20px; display: inline-block; margin-left:20%; margin-right:20%")
-              ), 
+              # column(width=1),
+              # column(
+              #     width = 5,
+              #     offset = 0,
+              #     HTML('<center> <img src="HIV_logoZoom.png" height="500"  />'),
+              #     p("The HIV PaCC model is informed from data collected from 32 studies of HIV public ART costs. The model uses routinely reported country- and year- matched data to estimates the cost of HIV, stratified by three cost types (direct medical, direct non-medical, and indirect). All estimates represent ART patient costs in constant 2025 International Dollars.", style="color: #000000; font-size: 18px;"),
+              #     
+              # actionButton('jumpToHIVPaCC', 'Calculate HIV costs!', icon("paper-plane"),
+              #              style="color: #000000; background-color: #FFFFFF; font-size: 20px; display: inline-block; margin-left:20%; margin-right:20%")
+              # ), 
               # column(width=1),
               style= "margin-left:15%;  margin-right:15%;"
               
@@ -620,130 +624,132 @@ ui <- page_navbar(
                         Methodological overview provided in the Documentation tab.\nPredictive model code available "), tags$a(href=post, "in this repository.")))
     ), ##### Close TBPaCC nav panel 
     
-    nav_panel(title = "HIVPaCC" , 
-              setBackgroundColor("#BE91BE"),
-              
-              # titlePanel(title = span(img(src = "logoZoom.png", height = 100), "HIV Patient Cost Calculator")),
-              
-              ##### Sidebar which includes the country dropdown selection #####
-              sidebarLayout(
-                  
-                  sidebarPanel(
-                      titlePanel(title = span(img(src = "HIV_logoZoom.png", height = 100), "HIV Patient Cost Calculator")),
-                      
-                      tags$div(tags$p(HTML("<b>
-                        Select a country and year below and the per-episode household costs of HIV will be automatically calculated.</b>" ))),
-                      
-                      selectInput(
-                          "hiv_country",
-                          label = "Select a country",
-                          choices = countries
-                      ),
-                      
-                      selectInput(
-                          "hiv_year",
-                          selected = 2024,
-                          label = "Select a year",
-                          choices = 2009:2024
-                      ),
-                      
-                      hr(),
-                      tags$div(tags$p(HTML("<b>
-                        Default covariate values for selected country and year: </b>"))),
-                      
-                      numericInput( 
-                          "hiv_medInc", 
-                          "Median annual household income (in 2025 INTD):", 
-                          value = NULL, 
-                          min = 4540, 
-                          max = 81454 
-                      ),
-                      
-                      numericInput( 
-                          "hiv_oopPerc", 
-                          "Out-of-pocket percentage of current health expenditures:", 
-                          value = NULL, 
-                          min = 4, 
-                          max = 74 
-                      ),
-                      
-                      numericInput( 
-                          "hiv_uhc", 
-                          "WHO Universal Healthcare Index", 
-                          value = NULL, 
-                          min = 24, 
-                          max = 99 
-                      ), 
-                      
-                      tags$div(tags$p(HTML("<br><b>
-                        To calculate costs with custom covariate values, click the 'Customize tb_covariates' button below. 
-                        Update the values, then click the 'Calculate costs' button to recalculate costs. </b>"))),
-                      
-                      actionButton('hiv_custCovs', 'Customize covariates',
-                                   style="color: #000000; background-color: #FFFFFF"),
-                      
-                      actionButton('hiv_reRun',    '   Calculate costs  ',
-                                   style="color: #000000; background-color: #FFFFFF"),
-                      
-                      
-                  ),
-                  ##### Main panel of results on right of screen
-                  mainPanel(
-                      
-                      ##### Create an inset of tabs for the user to click through #####
-                      navset_card_underline(
-                          title = "",
-                          ##### Plot of costs #####
-                          nav_panel("Cost figures", 
-                                    # splitLayout(cellWidths = c("50%", "50%"), plotOutput("costCstack", height="600px"), plotOutput("costPstack", height="600px")),
-                                    
-                                    plotOutput(outputId = "hiv_costPstack", height = "490px"),
-                                    plotOutput(outputId = "hiv_costCompPlot", height = "490px"),
-                                    
-                                    
-                                    downloadButton(
-                                        "hiv_downloadFigure",
-                                        label = "Download cost figures",
-                                        icon = shiny::icon("download"),
-                                        enabled = TRUE
-                                    )
-                                    # plotOutput(outputId = "costbar")
-                          ),
-                          ##### Table of costs #####
-                          nav_panel("Cost table",
-                                    tableOutput(outputId = "hiv_costTable"),
-                                    downloadButton(
-                                        "hiv_downloadTable",
-                                        label = "Download cost table",
-                                        icon = shiny::icon("download"),
-                                        enabled = TRUE
-                                    )),
-                          ##### Plot of tb_covariates #####
-                          # nav_panel("Covariate plots", 
-                          #           plotOutput(outputId = "tb_covariates")), 
-                          
-                          nav_panel("Country-specific cost studies", 
-                                    tableOutput(outputId = "hiv_studyTable")), 
-                      ), 
-                      
-                  ),
-                  
-                  # HTML('<footer>
-                  #         CAPTURE funded by Gates
-                  #       </footer>')
-              ),
-              
-              tags$div(tags$p(HTML("<br>
-                        # Methodological overview provided in the Documentation tab.")))#\nPredictive model code available "), tags$a(href=post, "in this repository.")))
-    ), ##### Close HIV Pacc Panel
-    
-    
+    # nav_panel(title = "HIVPaCC" , 
+    #           setBackgroundColor("#BE91BE"),
+    #           
+    #           # titlePanel(title = span(img(src = "logoZoom.png", height = 100), "HIV Patient Cost Calculator")),
+    #           
+    #           ##### Sidebar which includes the country dropdown selection #####
+    #           sidebarLayout(
+    # 
+    #               sidebarPanel(
+    #                   titlePanel(title = span(img(src = "HIV_logoZoom.png", height = 100), "HIV Patient Cost Calculator"))
+    #               ),
+    #           mainPanel("Under construction. Coming soon."))
+    #           #         
+    #           #         tags$div(tags$p(HTML("<b>
+    #           #           Select a country and year below and the per-episode household costs of HIV will be automatically calculated.</b>" ))),
+    #           #         
+    #           #         selectInput(
+    #           #             "hiv_country",
+    #           #             label = "Select a country",
+    #           #             choices = countries
+    #           #         ),
+    #           #         
+    #           #         selectInput(
+    #           #             "hiv_year",
+    #           #             selected = 2024,
+    #           #             label = "Select a year",
+    #           #             choices = 2009:2024
+    #           #         ),
+    #           #         
+    #           #         hr(),
+    #           #         tags$div(tags$p(HTML("<b>
+    #           #           Default covariate values for selected country and year: </b>"))),
+    #           #         
+    #           #         numericInput( 
+    #           #             "hiv_medInc", 
+    #           #             "Median annual household income (in 2025 INTD):", 
+    #           #             value = NULL, 
+    #           #             min = 4540, 
+    #           #             max = 81454 
+    #           #         ),
+    #           #         
+    #           #         numericInput( 
+    #           #             "hiv_oopPerc", 
+    #           #             "Out-of-pocket percentage of current health expenditures:", 
+    #           #             value = NULL, 
+    #           #             min = 4, 
+    #           #             max = 74 
+    #           #         ),
+    #           #         
+    #           #         numericInput( 
+    #           #             "hiv_uhc", 
+    #           #             "WHO Universal Healthcare Index", 
+    #           #             value = NULL, 
+    #           #             min = 24, 
+    #           #             max = 99 
+    #           #         ), 
+    #           #         
+    #           #         tags$div(tags$p(HTML("<br><b>
+    #           #           To calculate costs with custom covariate values, click the 'Customize tb_covariates' button below. 
+    #           #           Update the values, then click the 'Calculate costs' button to recalculate costs. </b>"))),
+    #           #         
+    #           #         actionButton('hiv_custCovs', 'Customize covariates',
+    #           #                      style="color: #000000; background-color: #FFFFFF"),
+    #           #         
+    #           #         actionButton('hiv_reRun',    '   Calculate costs  ',
+    #           #                      style="color: #000000; background-color: #FFFFFF"),
+    #           #         
+    #           #         
+    #           #     ),
+    #           #     ##### Main panel of results on right of screen
+    #           #     mainPanel(
+    #           #         
+    #           #         ##### Create an inset of tabs for the user to click through #####
+    #           #         navset_card_underline(
+    #           #             title = "",
+    #           #             ##### Plot of costs #####
+    #           #             nav_panel("Cost figures", 
+    #           #                       # splitLayout(cellWidths = c("50%", "50%"), plotOutput("costCstack", height="600px"), plotOutput("costPstack", height="600px")),
+    #           #                       
+    #           #                       plotOutput(outputId = "hiv_costPstack", height = "490px"),
+    #           #                       plotOutput(outputId = "hiv_costCompPlot", height = "490px"),
+    #           #                       
+    #           #                       
+    #           #                       downloadButton(
+    #           #                           "hiv_downloadFigure",
+    #           #                           label = "Download cost figures",
+    #           #                           icon = shiny::icon("download"),
+    #           #                           enabled = TRUE
+    #           #                       )
+    #           #                       # plotOutput(outputId = "costbar")
+    #           #             ),
+    #           #             ##### Table of costs #####
+    #           #             nav_panel("Cost table",
+    #           #                       tableOutput(outputId = "hiv_costTable"),
+    #           #                       downloadButton(
+    #           #                           "hiv_downloadTable",
+    #           #                           label = "Download cost table",
+    #           #                           icon = shiny::icon("download"),
+    #           #                           enabled = TRUE
+    #           #                       )),
+    #           #             ##### Plot of tb_covariates #####
+    #           #             # nav_panel("Covariate plots", 
+    #           #             #           plotOutput(outputId = "tb_covariates")), 
+    #           #             
+    #           #             nav_panel("Country-specific cost studies", 
+    #           #                       tableOutput(outputId = "hiv_studyTable")), 
+    #           #         ), 
+    #           #         
+    #           #     ),
+    #           #     
+    #           #     # HTML('<footer>
+    #           #     #         CAPTURE funded by Gates
+    #           #     #       </footer>')
+    #           # ),
+    #           # 
+    #           # tags$div(tags$p(HTML("<br>
+    #           #           # Methodological overview provided in the Documentation tab.")))#\nPredictive model code available "), tags$a(href=post, "in this repository.")))
+    # ), ##### Close HIV Pacc Panel
+    # 
+    # 
     nav_panel(title = "Documentation" , 
               setBackgroundColor("#BE91BE"),
               titlePanel(title = span(img(src = "logoZoom.png", height = 100), "Documentation and methods behind PaCC")),
               
               fluidRow(
-                  column(8,
+                  column(8, 
                          includeMarkdown("inst/md/docAndMethods.md"))
               )
     ), 
