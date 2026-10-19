@@ -1,6 +1,7 @@
 # preparations; required libraries
 library(shiny)
 library(shinyWidgets)
+library(bslib)
 library(tidyr)
 library(dplyr)
 library(tibble)
@@ -10,8 +11,8 @@ library(ggplot2)
 if (FALSE) {
     library(munsell)
 }
-library(bslib)
-# webr::install("markdown")
+#### YOU MUST COMMENT THIS OUT IF YOU WANT TO RUN THE SHINY APP LIKE NORMAL
+webr::install("markdown")
 
 #### Repository URL 
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
@@ -202,68 +203,6 @@ tb_calculateCosts <- function(selectedCntry,
     
     return(allCosts)
 }
-
-##############################################################################|
-##### Function to calculate TB costs for selected country & return dataframe ##
-##############################################################################|
-
-hiv_calculateCosts <- function(selectedCntry, 
-                              yearInput = 2024,
-                              medIncInput, 
-                              oopInput,
-                              uhcInput) {
-    
-    covs <- hiv_covariates %>% 
-        filter(study.country == selectedCntry,
-               study.end.year == yearInput)
-    
-    covs[, "scaled.med.inc"] <- (log(medIncInput) - hiv_scalars["mean", "log.median.income"]) / hiv_scalars["sd", "log.median.income"] 
-    covs[, "scaled.oop.che"] <- (oopInput - hiv_scalars["mean", "oop.perc.che"]) / hiv_scalars["sd", "oop.perc.che"]
-    covs[, "scaled.uhc"]     <- (uhcInput - hiv_scalars["mean", "uhc.index"]) / hiv_scalars["sd", "uhc.index"]
-    
-    cntryREHIV <- hiv_cntryREs %>% filter(Country == selectedCntry) %>% select(!Country) %>% 
-        unlist() %>% as.numeric()
-    
-    scaledYear <- (yearInput - hiv_scalars["mean", "study.end.year"]) / hiv_scalars["sd", "study.end.year"]
-    
-    estimates <- data.frame(### DME 
-                            dme = 
-                                exp(hiv_params[,"b_dme"] + cntryREHIV + 
-                                    hiv_params[,"b_inc"] * covs$scaled.med.inc +
-                                    hiv_params[,"b_oop"] * covs$scaled.oop.che +
-                                    hiv_params[,"b_uhc"] * covs$scaled.uhc + 
-                                    hiv_params[,"b_yr_dme"] * scaledYear),
-                            ### DNME  
-                            dnme.prediag =   
-                                exp(hiv_params[,"b_dnme"] + cntryREHIV + 
-                                        hiv_params[,"b_inc"] * covs$scaled.med.inc +
-                                        hiv_params[,"b_oop"] * covs$scaled.oop.che +
-                                        hiv_params[,"b_uhc"] * covs$scaled.uhc +
-                                        hiv_params[,"b_yr_dnme"] * scaledYear), 
-                            ie.prediag =   
-                                ### INDIRECT  
-                                exp(hiv_params[,"b_ie"] + cntryREHIV + 
-                                        hiv_params[,"b_inc"] * covs$scaled.med.inc +
-                                        hiv_params[,"b_oop"] * covs$scaled.oop.che +
-                                        hiv_params[,"b_uhc"] * covs$scaled.uhc +
-                                        hiv_params[,"b_yr_ie"] * scaledYear))
-    
-    estimates$Total <- rowSums(estimates)
-    
-    allCosts <- data.frame(Category = rep("ART", 4), 
-                           Phase =   c("Direct\nmedical", "Direct\nnon-medical", "Indirect", ""), 
-                           Description = c("Direct medical", 
-                                           "Direct non-medical",
-                                           "Indirect",
-                                           "Total"),  
-                           Estimate = round(apply(estimates, MARGIN = 1, mean)),
-                           LB = round(apply(estimates, MARGIN = 2, quantile, probs=0.025)),
-                           UB = round(apply(estimates, MARGIN = 2, quantile, probs=0.975))) %>%
-        mutate(`95% uncertainty interval` = paste0("(", LB, ", ", UB, ")"))
-    
-    return(allCosts)
-}
-
 
 ##############################################################################|
 ##### Function to create a bar plot of calculated costs for selected country ##
