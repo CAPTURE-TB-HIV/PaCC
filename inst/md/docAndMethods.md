@@ -3,7 +3,7 @@ News
 
 **Manuscript pre-print live!** 
 
-The manuscript describing the methods used to estimate the TB household costs (previously referred to as TB patient costs) is live on MedRxiv. 
+The manuscript describing the methods used to estimate the TB household costs (previously referred to as TB patient costs) is live on MedRxiv. Read it [here](https://www.medrxiv.org/content/10.64898/2026.10.19.26365552v1)!
 
 Data sources
 -----------------------------
