@@ -2,10 +2,7 @@
 library(shiny)
 library(shinyWidgets)
 library(bslib)
-library(tidyr)
 library(dplyr)
-library(tibble)
-library(stringr)
 library(ggplot2)
 ##### This load is required for webR/shinylive to work 
 if (FALSE) {
@@ -69,9 +66,7 @@ lookup_inputs <- function(selectedCntry,
                                 "Median household\nannual income\n(2025 INTD)" = median.income.hh, 
                                 # "Universal healthcare\ncoverage index" = uhc.index, 
                                 "TB case\ndetection rate" = cdr.rate, 
-                                
-                                "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che)
-                        , 
+                                "Out-of-pocket percentage\nof current health\nexpenditures" = oop.perc.che), 
                         "HIV" =  hiv_covariates %>% filter(study.country == selectedCntry, 
                                                           study.end.year == selectedYear) %>% 
                             mutate("Median household\nannual income\n(2025 INTD)" = median.income, 
