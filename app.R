@@ -3,11 +3,11 @@ library(shiny)
 library(shinyWidgets)
 library(bslib)
 library(dplyr)
-library(ggplot2)
+# library(ggplot2)
 ##### This load is required for webR/shinylive to work 
-if (FALSE) {
-    library(munsell)
-}
+# if (FALSE) {
+#     library(munsell)
+# }
 #### YOU MUST COMMENT THIS OUT IF YOU WANT TO RUN THE SHINY APP LIKE NORMAL
 webr::install("markdown")
 
@@ -29,7 +29,7 @@ tb_comp_df <- readRDS("utilities/data/TB/compData.rds")
 # hiv_comp_df <- readRDS("utilities/data/HIV/compData.rds")
 
 ##### Model parameter estimates 
-tb_params <- readRDS("utilities/data/TB/parameters.rds")
+tb_params <- readRDS("utilities/data/TB/parametersTiny.rds")
 
 # hiv_params <- readRDS("utilities/data/HIV/parameters.rds")
 
@@ -38,7 +38,7 @@ tb_scalars <- readRDS("utilities/data/TB/scalars.rds")
 # hiv_scalars <- readRDS("utilities/data/HIV/scalars.rds")
 
 ##### Model estimates of country random effects
-tb_cntryREs <- readRDS("utilities/data/TB/cntryRndEff.rds") 
+tb_cntryREs <- readRDS("utilities/data/TB/cntryRndEffTiny.rds") 
 # tb_cntryREs %>% filter(Country == "China") %>% select(!Country) %>% as.numeric() %>% mean()
 # hiv_cntryREs <- readRDS("utilities/data/HIV/cntryRndEff.rds") 
 
@@ -218,45 +218,85 @@ plot_stackP_costs <- function(selectedCntry,
     infection <- ifelse(infection == "HIV", 
                         "ART", "TB")
     
-
-    ggplot(costs_df %>% 
-               filter(Description != "Total") %>%
-               dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
-                                                               "Direct\nnon-medical", 
-                                                               "Direct\nmedical"
-               ), ordered=TRUE))) + 
-        geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black", position = "stack") + 
-        ggtitle(paste(plot.opts[2], "shousehold cost of", infection, "in", selectedCntry, "by cost category")) + 
-        coord_flip() +
-        theme_minimal(base_size = 18) + 
-        expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
-        scale_fill_manual(values = plotPal, 
-                          guide = guide_legend(reverse = TRUE)) + 
-        xlab("") + ylab("Costs (2025 INTD)") +
-        theme(legend.position = plot.opts[1],
-              plot.title = element_text(size = 18), axis.text = element_text(size = 16)) #+ 
+    allCosts2 <- matrix(costs_df$Estimate[-10], 3, 3)
+    colnames(allCosts2) <- unique(costs_df$Phase[-10])
+    rownames(allCosts2) <- unique(costs_df$Category[-10])
+    
+    opar <- par(no.readonly = TRUE)
+    par(mar = c(8, 4.1, 4.1, 2.1))
+    
+    barplot(allCosts2,
+            col = plotPal, border = "black", horiz = TRUE,
+            main = paste(plot.opts[2], "shousehold cost of", infection, "in", selectedCntry, "\nby cost category"),
+            ylab = "", xlab = "Costs (2025 INTD)", xlim= c(0, max(colSums(allCosts2))*1.2))
+    
+    legend("bottom", inset=c(0, -.25), horiz = TRUE,
+           legend = rownames(allCosts2),
+           fill = plotPal,  xpd = TRUE, 
+           box.lty = 0, cex = 1)
+    
+    on.exit(par(opar))
+    
+    
+    # ggplot(costs_df %>% 
+    #            filter(Description != "Total") %>%
+    #            dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
+    #                                                            "Direct\nnon-medical", 
+    #                                                            "Direct\nmedical"
+    #            ), ordered=TRUE))) + 
+    #     geom_col(aes(x=Phase, y=Estimate, fill = Category), color="black", position = "stack") + 
+    #     ggtitle(paste(plot.opts[2], "shousehold cost of", infection, "in", selectedCntry, "by cost category")) + 
+    #     coord_flip() +
+    #     theme_minimal(base_size = 18) + 
+    #     expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
+    #     scale_fill_manual(values = plotPal, 
+    #                       guide = guide_legend(reverse = TRUE)) + 
+    #     xlab("") + ylab("Costs (2025 INTD)") +
+    #     theme(legend.position = plot.opts[1],
+    #           plot.title = element_text(size = 18), axis.text = element_text(size = 16)) #+ 
     # geom_text(aes(x=Phase, y=Estimate, label=round(Estimate)), position = position_stack(0.5))
 }
 
 plot_stackC_costs <- function(selectedCntry,
                               costs_df
 ){
-    ggplot(costs_df %>% 
-               filter(Description != "Total") %>%
-               dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
-                                                               "Direct\nnon-medical", 
-                                                               "Direct\nmedical"
-               ), ordered=TRUE))) + 
-        geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
-        ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by treatment phase")) + 
-        coord_flip() +
-        theme_minimal(base_size = 18) + 
-        expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
-        scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
-                          guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
-        xlab("") + ylab("Costs (2025 INTD)")+
-        theme(legend.position = "bottom", 
-              plot.title = element_text(size = 18), axis.text = element_text(size = 16))
+    
+    allCosts2 <- matrix(costs_df$Estimate[-10], 3, 3, byrow = TRUE)
+    rownames(allCosts2) <- unique(costs_df$Phase[-10])
+    colnames(allCosts2) <- unique(costs_df$Category[-10])
+    
+    opar <- par(no.readonly = TRUE)
+    par(mar = c(8, 4.1, 4.1, 2.1))
+    
+    barplot(allCosts2,
+            col = c("#2F3D2F", "#4E664F", "#A8DCAB"), border = "black", horiz = TRUE,
+            main = paste("Per-episode household cost of TB in", selectedCntry, "\nby treatment phase"),
+            ylab = "", xlab = "Costs (2025 INTD)", xlim= c(0, max(colSums(allCosts2))*1.2))
+    
+    legend("bottom", inset=c(0, -.25), horiz = TRUE,
+           legend = rownames(allCosts2),
+           fill = c("#2F3D2F", "#4E664F", "#A8DCAB"),  xpd = TRUE, 
+           box.lty = 0, cex = 1)
+    
+    on.exit(par(opar))
+    
+    
+    # ggplot(costs_df %>% 
+    #            filter(Description != "Total") %>%
+    #            dplyr::mutate(Phase = factor(Phase, levels = c( "Indirect", 
+    #                                                            "Direct\nnon-medical", 
+    #                                                            "Direct\nmedical"
+    #            ), ordered=TRUE))) + 
+    #     geom_col(aes(x=Category, y=Estimate, fill = Phase), color="black") + 
+    #     ggtitle(paste("Per-episode household cost of TB in", selectedCntry, "by treatment phase")) + 
+    #     coord_flip() +
+    #     theme_minimal(base_size = 18) + 
+    #     expand_limits(y=c(0,max(costs_df$Estimate[-10]) * 1.25)) +
+    #     scale_fill_manual(values = c("#2F3D2F", "#4E664F", "#A8DCAB"), 
+    #                       guide = guide_legend(reverse = TRUE)) + # "#8CB88E",
+    #     xlab("") + ylab("Costs (2025 INTD)")+
+    #     theme(legend.position = "bottom", 
+    #           plot.title = element_text(size = 18), axis.text = element_text(size = 16))
 }
 
 plot_comp_costs <- function(selectedCntry,
@@ -292,16 +332,34 @@ plot_comp_costs <- function(selectedCntry,
                               "dark", "light"), 
                Description = factor(Description, levels = c("All LMICs\naverage", "Regional\naverage", 
                                                             paste(selectedCntry))))
-    ggplot(summaryCosts) + 
-        geom_col(aes(x=Description, y=Estimate, fill=color), color="black") + 
-        ggtitle(paste("Comparison of household cost of", infection, "in", selectedCntry, "with regional and all LMIC average")) + 
-        coord_flip() + theme_minimal(base_size = 18) + 
-        expand_limits(y=c(0,max(summaryCosts$Estimate[-10]) * 1.25)) +
-        scale_fill_manual(values = c("#A567A5", "#D7BBD7")) + # "#8CB88E",
-        xlab("") + ylab("Costs (2025 INTD)")+
-        theme(legend.position = "none", 
-              plot.title = element_text(size = 18), axis.text = element_text(size = 16))  +
-        geom_text(aes(x=Description, y=Estimate, label=round(Estimate)), hjust = -.5, fontface="bold")
+    
+    
+    summaryCosts2 <- matrix(summaryCosts$Estimate)
+    rownames(summaryCosts2) <- summaryCosts$Description
+    # summaryCosts2 <- t(summaryCosts2)
+    pal2 <- c( "#D7BBD7", "#A567A5")
+    dark <- summaryCosts2 == summaryCosts$Estimate[3]
+    barplot(as.vector(summaryCosts2),
+            col = pal2[dark+1], border = "black", horiz = TRUE,
+            main = paste("Comparison of household cost of", infection, "in", selectedCntry, "\nwith regional and all LMIC average"),
+            ylab = "", xlab = "Costs (2025 INTD)", xlim= c(0, max(summaryCosts2)*1.5))
+
+   p <- barplot(t(summaryCosts2),
+            col = pal2, border = "black", horiz = TRUE,
+            main = paste("Comparison of household cost of", infection, "in", selectedCntry, "\nwith regional and all LMIC average"),
+            ylab = "", xlab = "Costs (2025 INTD)", xlim= c(0, max(summaryCosts2)*1.5))
+    
+    text(y = p, x = t(summaryCosts2) + 500, labels = t(summaryCosts2))
+    # ggplot(summaryCosts) +
+    #     geom_col(aes(x=Description, y=Estimate, fill=color), color="black") +
+    #     ggtitle(paste("Comparison of household cost of", infection, "in", selectedCntry, "with regional and all LMIC average")) +
+    #     coord_flip() + theme_minimal(base_size = 18) +
+    #     expand_limits(y=c(0,max(summaryCosts$Estimate[-10]) * 1.25)) +
+    #     scale_fill_manual(values = c("#A567A5", "#D7BBD7")) + # "#8CB88E",
+    #     xlab("") + ylab("Costs (2025 INTD)")+
+    #     theme(legend.position = "none",
+    #           plot.title = element_text(size = 18), axis.text = element_text(size = 16))  +
+    #     geom_text(aes(x=Description, y=Estimate, label=round(Estimate)), hjust = -.5, fontface="bold")
 }
 
 
