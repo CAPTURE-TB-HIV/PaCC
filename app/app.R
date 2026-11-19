@@ -8,8 +8,11 @@ library(dplyr)
 # if (FALSE) {
 #     library(munsell)
 # }
-#### YOU MUST COMMENT THIS OUT IF YOU WANT TO RUN THE SHINY APP LIKE NORMAL
-webr::install("markdown")
+#### Render a markdown file with shiny's built-in `markdown()`.
+#### This avoids the {markdown} package, so nothing extra is downloaded.
+md_file <- function(path) {
+    shiny::markdown(readLines(path, encoding = "UTF-8", warn = FALSE))
+}
 
 #### Repository URL 
 post <- "https://github.com/CAPTURE-TB-HIV/tb-lmic-patientcosts-review"
@@ -599,7 +602,7 @@ ui <- page_navbar(
               
               fluidRow(
                   column(8,
-                         includeMarkdown("inst/md/docAndMethods.md"))
+                         md_file("inst/md/docAndMethods.md"))
               )
     ), 
     
@@ -613,7 +616,7 @@ ui <- page_navbar(
               
               fluidRow(
                   column(8,
-                         includeMarkdown("inst/md/guidance.md"))
+                         md_file("inst/md/guidance.md"))
               )
     )#,
     # )
