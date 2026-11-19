@@ -572,11 +572,11 @@ ui <- page_navbar(
                           ##### Table of costs #####
                           nav_panel("Cost table",
                                     tableOutput(outputId = "tb_costTable"),
-                                    # downloadButton(
-                                    #     "tb_downloadTable",
-                                    #     label = "Download cost table",
-                                    #     icon = shiny::icon("download"),
-                                    #     enabled = TRUE)
+                                    downloadButton(
+                                        "tb_downloadTable",
+                                        label = "Download cost table",
+                                        icon = shiny::icon("download"),
+                                        enabled = TRUE)
                                     ),
                           
                           nav_panel("Country-specific cost studies", 
@@ -797,7 +797,7 @@ server <- function(input, output, session) {
                 
                 pdf(file = file, onefile = TRUE, width=11, height=8.5)
                 for(i in 1:length(pList)){
-                    print(pList[[i]])
+                    (pList[[i]])
                 }
                 dev.off()
             }
