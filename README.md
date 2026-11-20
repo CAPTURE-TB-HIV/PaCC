@@ -12,8 +12,14 @@ Please note: TB patient cost data varies substantially across settings and study
 ## Repository layout
 
 - `app/`: the Shiny app (`app.R`, data in `utilities/`, Markdown pages in `inst/md/`, images in `www/`).
-- `docs/`: the static website made by [shinylive](https://posit-dev.github.io/r-shinylive/). It runs the app in the browser with no server. Do not edit it by hand; re-export it instead.
 - `scripts/`: helper scripts.
+- `.github/workflows/deploy-app.yaml`: builds the website and publishes it to GitHub Pages.
+
+## Website
+
+The website is at https://capture-tb-hiv.github.io/PaCC/. It is made by [shinylive](https://posit-dev.github.io/r-shinylive/), which runs the app in the browser with no server.
+
+GitHub Actions rebuilds the website from `app/` and publishes it every time `main` changes. On pull requests, it only checks that the website still builds. To rebuild it by hand, go to **Actions → Deploy app to GitHub Pages → Run workflow**.
 
 ## Running the app locally
 
@@ -21,9 +27,11 @@ Please note: TB patient cost data varies substantially across settings and study
 shiny::runApp("app")
 ```
 
-## Exporting the website
+## Exporting the website locally
 
-`scripts/export.R` rebuilds `docs/` from `app/`. Run it from the repo root after changing the app:
+You do not need to export the website to publish it. GitHub Actions does that. Exporting locally is useful to check the download size before you push.
+
+`scripts/export.R` builds the website into `docs/` from `app/`. `docs/` is not committed. Run the script from the repo root:
 
 ```sh
 Rscript scripts/export.R
