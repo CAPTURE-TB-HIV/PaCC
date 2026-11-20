@@ -46,3 +46,6 @@ po/*~
 rsconnect/
 
 */.DS_Store
+
+# Website made by scripts/export.R (GitHub Actions builds the live site)
+/docs/
