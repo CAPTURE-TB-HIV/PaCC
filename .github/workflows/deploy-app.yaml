@@ -1,0 +1,26 @@
+# Build the Shiny app in `app/` with shinylive and deploy it to GitHub Pages.
+#
+# Uses the reusable workflow from the shinylive R package:
+# https://github.com/posit-dev/r-shinylive/blob/actions-v1/.github/workflows/deploy-app.yaml
+#
+# - On pull requests, the site is only built, to check that the export works.
+# - On push to `main` (or a manual run), the site is built and deployed.
+#
+# GitHub Pages must use "GitHub Actions" as its source:
+# Settings > Pages > Build and deployment > Source.
+name: Deploy app to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  shinylive:
+    uses: posit-dev/r-shinylive/.github/workflows/deploy-app.yaml@actions-v1
+    with:
+      app-dir: app
+    permissions:
+      pages: write # to deploy to Pages
+      id-token: write # to verify the deployment originates from an appropriate source
